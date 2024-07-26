@@ -88,7 +88,7 @@ Setup
 .. _Administrator documentation: https://docs.searxng.org/admin/index.html
 .. _Step by step: https://docs.searxng.org/admin/installation-searxng.html
 .. _installation scripts: https://docs.searxng.org/admin/installation-scripts.html
-.. _Docker image: https://github.com/searxng/searxng-docker
+.. _Docker image: https://github.com/Sync-Pundit/searxng-docker
 
 Translations
 ============
