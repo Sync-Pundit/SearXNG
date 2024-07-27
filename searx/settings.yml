@@ -797,6 +797,11 @@ engines:
     timeout: 8.0
     disabled: true
 
+  - name: geizhals
+    engine: geizhals
+    shortcut: geiz
+    disabled: true
+
   - name: genius
     engine: genius
     shortcut: gen
@@ -2157,10 +2162,13 @@ engines:
 
   - name: yacy images
     engine: yacy
+    network: yacy
     categories: images
     search_type: image
     shortcut: yai
     disabled: true
+    # timeout can be reduced in 'local' search mode
+    timeout: 5.0
 
   - name: rumble
     engine: rumble
