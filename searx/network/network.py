@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # pylint: disable=global-statement
 # pylint: disable=missing-module-docstring, missing-class-docstring
+from __future__ import annotations
 
+import typing
 import atexit
 import asyncio
 import ipaddress
@@ -11,6 +13,7 @@ from typing import Dict
 import httpx
 
 from searx import logger, searx_debug
+from searx.extended_types import SXNG_Response
 from .client import new_client, get_loop, AsyncHTTPTransportNoHttp
 from .raise_for_httperror import raise_for_httperror
 
@@ -233,17 +236,20 @@ class Network:
             del kwargs['raise_for_httperror']
         return do_raise_for_httperror
 
-    @staticmethod
-    def patch_response(response, do_raise_for_httperror):
+    def patch_response(self, response, do_raise_for_httperror) -> SXNG_Response:
         if isinstance(response, httpx.Response):
+            response = typing.cast(SXNG_Response, response)
             # requests compatibility (response is not streamed)
             # see also https://www.python-httpx.org/compatibility/#checking-for-4xx5xx-responses
             response.ok = not response.is_error
 
             # raise an exception
             if do_raise_for_httperror:
-                raise_for_httperror(response)
-
+                try:
+                    raise_for_httperror(response)
+                except:
+                    self._logger.warning(f"HTTP Request failed: {response.request.method} {response.request.url}")
+                    raise
         return response
 
     def is_valid_response(self, response):
@@ -256,7 +262,7 @@ class Network:
             return False
         return True
 
-    async def call_client(self, stream, method, url, **kwargs):
+    async def call_client(self, stream, method, url, **kwargs) -> SXNG_Response:
         retries = self.retries
         was_disconnected = False
         do_raise_for_httperror = Network.extract_do_raise_for_httperror(kwargs)
@@ -269,7 +275,7 @@ class Network:
                 else:
                     response = await client.request(method, url, **kwargs)
                 if self.is_valid_response(response) or retries <= 0:
-                    return Network.patch_response(response, do_raise_for_httperror)
+                    return self.patch_response(response, do_raise_for_httperror)
             except httpx.RemoteProtocolError as e:
                 if not was_disconnected:
                     # the server has closed the connection:

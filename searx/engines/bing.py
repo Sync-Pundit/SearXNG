@@ -10,7 +10,7 @@ On the `preference page`_ Bing offers a lot of languages an regions (see section
 LANGUAGE and COUNTRY/REGION).  The Language is the language of the UI, we need
 in SearXNG to get the translations of data such as *"published last week"*.
 
-There is a description of the offical search-APIs_, unfortunately this is not
+There is a description of the official search-APIs_, unfortunately this is not
 the API we can use or that bing itself would use.  You can look up some things
 in the API to get a better picture of bing, but the value specifications like
 the market codes are usually outdated or at least no longer used by bing itself.
@@ -91,7 +91,7 @@ def request(query, params):
     page = params.get('pageno', 1)
     query_params = {
         'q': query,
-        # if arg 'pq' is missed, somtimes on page 4 we get results from page 1,
+        # if arg 'pq' is missed, sometimes on page 4 we get results from page 1,
         # don't ask why it is only sometimes / its M$ and they have never been
         # deterministic ;)
         'pq': query,
@@ -177,7 +177,7 @@ def response(resp):
         logger.debug('result error :\n%s', e)
 
     if result_len and _page_offset(resp.search_params.get("pageno", 0)) > result_len:
-        # Avoid reading more results than avalaible.
+        # Avoid reading more results than available.
         # For example, if there is 100 results from some search and we try to get results from 120 to 130,
         # Bing will send back the results from 0 to 10 and no error.
         # If we compare results count with the first parameter of the request we can avoid this "invalid" results.
@@ -192,8 +192,21 @@ def fetch_traits(engine_traits: EngineTraits):
     # pylint: disable=import-outside-toplevel
 
     from searx.network import get  # see https://github.com/searxng/searxng/issues/762
+    from searx.utils import gen_useragent
 
-    resp = get("https://www.bing.com/account/general")
+    headers = {
+        "User-Agent": gen_useragent(),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US;q=0.5,en;q=0.3",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-GPC": "1",
+        "Cache-Control": "max-age=0",
+    }
+
+    resp = get("https://www.bing.com/account/general", headers=headers)
     if not resp.ok:  # type: ignore
         print("ERROR: response from bing is not OK.")
 

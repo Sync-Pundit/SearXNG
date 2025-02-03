@@ -12,6 +12,10 @@ general:
   contact_url: false
   # record stats
   enable_metrics: true
+  # expose stats in open metrics format at /metrics
+  # leave empty to disable (no password set)
+  # open_metrics: <password>
+  open_metrics: ''
 
 brand:
   new_issue_url: https://github.com/searxng/searxng/issues/new
@@ -29,9 +33,9 @@ brand:
 search:
   # Filter results. 0: None, 1: Moderate, 2: Strict
   safe_search: 0
-  # Existing autocomplete backends: "dbpedia", "duckduckgo", "google", "yandex", "mwmbl",
-  # "seznam", "startpage", "stract", "swisscows", "qwant", "wikipedia" - leave blank to turn it off
-  # by default.
+  # Existing autocomplete backends: "baidu", "brave", "dbpedia", "duckduckgo", "google", "yandex",
+  # "mwmbl", "seznam", "startpage", "stract", "swisscows", "qwant", "wikipedia" -
+  # leave blank to turn it off by default.
   autocomplete: ""
   # minimun characters to type before autocompleter starts
   autocomplete_min: 4
@@ -141,15 +145,27 @@ ui:
   search_on_category_select: true
   # Hotkeys: default or vim
   hotkeys: default
+  # URL formatting: pretty, full or host
+  url_formatting: pretty
 
-# Lock arbitrary settings on the preferences page.  To find the ID of the user
-# setting you want to lock, check the ID of the form on the page "preferences".
+# Lock arbitrary settings on the preferences page.
 #
 # preferences:
 #   lock:
+#     - categories
 #     - language
 #     - autocomplete
+#     - favicon
+#     - safesearch
 #     - method
+#     - doi_resolver
+#     - locale
+#     - theme
+#     - results_on_new_tab
+#     - infinite_scroll
+#     - search_on_category_select
+#     - method
+#     - image_proxy
 #     - query_in_title
 
 # searx supports result proxification using an external service:
@@ -211,14 +227,15 @@ outgoing:
   #    - fe80::/126
 
 # External plugin configuration, for more details see
-#   https://docs.searxng.org/dev/plugins.html
+#   https://docs.searxng.org/admin/settings/settings_plugins.html
 #
 # plugins:
-#   - plugin1
-#   - plugin2
+#   - mypackage.mymodule.MyPlugin
+#   - mypackage.mymodule.MyOtherPlugin
 #   - ...
 
 # Comment or un-comment plugin to activate / deactivate by default.
+#   https://docs.searxng.org/admin/settings/settings_plugins.html
 #
 # enabled_plugins:
 #   # these plugins are enabled if nothing is configured ..
@@ -325,6 +342,63 @@ engines:
     shortcut: 9g
     disabled: true
 
+  - name: adobe stock
+    engine: adobe_stock
+    shortcut: asi
+    categories: ["images"]
+    # https://docs.searxng.org/dev/engines/online/adobe_stock.html
+    adobe_order: relevance
+    adobe_content_types: ["photo", "illustration", "zip_vector", "template", "3d", "image"]
+    timeout: 6
+    disabled: true
+
+  - name: adobe stock video
+    engine: adobe_stock
+    shortcut: asv
+    network: adobe stock
+    categories: ["videos"]
+    adobe_order: relevance
+    adobe_content_types: ["video"]
+    timeout: 6
+    disabled: true
+
+  - name: adobe stock audio
+    engine: adobe_stock
+    shortcut: asa
+    network: adobe stock
+    categories: ["music"]
+    adobe_order: relevance
+    adobe_content_types: ["audio"]
+    timeout: 6
+    disabled: true
+
+  - name: alexandria
+    engine: json_engine
+    shortcut: alx
+    categories: general
+    paging: true
+    search_url: https://api.alexandria.org/?a=1&q={query}&p={pageno}
+    results_query: results
+    title_query: title
+    url_query: url
+    content_query: snippet
+    timeout: 1.5
+    disabled: true
+    about:
+      website: https://alexandria.org/
+      official_api_documentation: https://github.com/alexandria-org/alexandria-api/raw/master/README.md
+      use_official_api: true
+      require_api_key: false
+      results: JSON
+
+  # - name: astrophysics data system
+  #   engine: astrophysics_data_system
+  #   sort: asc
+  #   weight: 5
+  #   categories: [science]
+  #   api_key: your-new-key
+  #   shortcut: ads
+
   - name: alpine linux packages
     engine: alpinelinux
     disabled: true
@@ -379,6 +453,14 @@ engines:
     engine: archlinux
     shortcut: al
 
+  - name: nixos wiki
+    engine: mediawiki
+    shortcut: nixw
+    base_url: https://wiki.nixos.org/
+    search_type: text
+    disabled: true
+    categories: [it, software wikis]
+
   - name: artic
     engine: artic
     shortcut: arc
@@ -409,7 +491,6 @@ engines:
     shortcut: wp
     # add "list" to the array to get results in the results list
     display_type: ["infobox"]
-    base_url: 'https://{language}.wikipedia.org/'
     categories: [general]
 
   - name: bilibili
@@ -528,6 +609,8 @@ engines:
     url_query: link
     title_query: title
     content_query: snippet
+    title_html_to_text: true
+    content_html_to_text: true
     disabled: true
     about:
       website: https://crowdview.ai/
@@ -1008,6 +1091,11 @@ engines:
     timeout: 3.0
     disabled: true
 
+  - name: ipernity
+    engine: ipernity
+    shortcut: ip
+    disabled: true
+
   - name: jisho
     engine: jisho
     shortcut: js
@@ -1082,8 +1170,7 @@ engines:
     engine: libretranslate
     # https://github.com/LibreTranslate/LibreTranslate?tab=readme-ov-file#mirrors
     base_url:
-      - https://translate.terraprint.co
-      - https://trans.zillyhuhn.com
+      - https://libretranslate.com/translate
     # api_key: abc123
     shortcut: lt
     disabled: true
@@ -1478,6 +1565,10 @@ engines:
       require_api_key: false
       results: HTML
 
+  - name: Public Domain Image Archive
+    engine: public_domain_image_archive
+    shortcut: pdia
+
   - name: pubmed
     engine: pubmed
     shortcut: pub
@@ -1621,11 +1712,6 @@ engines:
     shortcut: ubuntu
     api_site: 'askubuntu'
     categories: [it, q&a]
-
-  - name: internetarchivescholar
-    engine: internet_archive_scholar
-    shortcut: ias
-    timeout: 15.0
 
   - name: superuser
     engine: stackexchange
@@ -2204,7 +2290,6 @@ engines:
   - name: wordnik
     engine: wordnik
     shortcut: def
-    base_url: https://www.wordnik.com/
     categories: [dictionaries]
     timeout: 5.0
 
@@ -2248,13 +2333,6 @@ engines:
     shortcut: sevid
     categories: videos
     seekr_category: videos
-    disabled: true
-
-  - name: sjp.pwn
-    engine: sjp
-    shortcut: sjp
-    base_url: https://sjp.pwn.pl/
-    timeout: 5.0
     disabled: true
 
   - name: stract

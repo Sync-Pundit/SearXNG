@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# pylint: disable=missing-module-docstring, invalid-name
+# pylint: disable=missing-module-docstring,disable=missing-class-docstring,invalid-name
 
-from tests import SearxTestCase
+import flask
+from mock import Mock
+
 from searx import favicons
 from searx.locales import locales_initialize
 from searx.preferences import (
+    Setting,
     EnumStringSetting,
     MapSetting,
     SearchLanguageSetting,
@@ -12,19 +15,19 @@ from searx.preferences import (
     PluginsSetting,
     ValidationException,
 )
-from searx.plugins import Plugin
+import searx.plugins
+from searx.preferences import Preferences
+
+from tests import SearxTestCase
+from .test_plugins import PluginMock
+
 
 locales_initialize()
 favicons.init()
 
 
-class PluginStub(Plugin):  # pylint: disable=missing-class-docstring, too-few-public-methods
-    def __init__(self, plugin_id, default_on):
-        self.id = plugin_id
-        self.default_on = default_on
+class TestSettings(SearxTestCase):
 
-
-class TestSettings(SearxTestCase):  # pylint: disable=missing-class-docstring
     # map settings
 
     def test_map_setting_invalid_default_value(self):
@@ -89,6 +92,7 @@ class TestSettings(SearxTestCase):  # pylint: disable=missing-class-docstring
         self.assertEqual(setting.get_value(), ['2'])
 
     # search language settings
+
     def test_lang_setting_valid_choice(self):
         setting = SearchLanguageSetting('all', choices=['all', 'de', 'en'])
         setting.parse('de')
@@ -110,25 +114,32 @@ class TestSettings(SearxTestCase):  # pylint: disable=missing-class-docstring
         self.assertEqual(setting.get_value(), 'es-ES')
 
     # plugins settings
+
     def test_plugins_setting_all_default_enabled(self):
-        plugin1 = PluginStub('plugin1', True)
-        plugin2 = PluginStub('plugin2', True)
-        setting = PluginsSetting(['3'], plugins=[plugin1, plugin2])
-        self.assertEqual(set(setting.get_enabled()), set(['plugin1', 'plugin2']))
+        storage = searx.plugins.PluginStorage()
+        storage.register(PluginMock("plg001", "first plugin", True))
+        storage.register(PluginMock("plg002", "second plugin", True))
+        plgs_settings = PluginsSetting(False, storage)
+        self.assertEqual(set(plgs_settings.get_enabled()), {"plg001", "plg002"})
 
     def test_plugins_setting_few_default_enabled(self):
-        plugin1 = PluginStub('plugin1', True)
-        plugin2 = PluginStub('plugin2', False)
-        plugin3 = PluginStub('plugin3', True)
-        setting = PluginsSetting('name', plugins=[plugin1, plugin2, plugin3])
-        self.assertEqual(set(setting.get_enabled()), set(['plugin1', 'plugin3']))
+        storage = searx.plugins.PluginStorage()
+        storage.register(PluginMock("plg001", "first plugin", True))
+        storage.register(PluginMock("plg002", "second plugin", False))
+        storage.register(PluginMock("plg003", "third plugin", True))
+        plgs_settings = PluginsSetting(False, storage)
+        self.assertEqual(set(plgs_settings.get_enabled()), set(['plg001', 'plg003']))
 
 
-class TestPreferences(SearxTestCase):  # pylint: disable=missing-class-docstring
+class TestPreferences(SearxTestCase):
+
+    def setUp(self):
+        super().setUp()
+
+        storage = searx.plugins.PluginStorage()
+        self.preferences = Preferences(['simple'], ['general'], {}, storage)
+
     def test_encode(self):
-        from searx.preferences import Preferences  # pylint: disable=import-outside-toplevel
-
-        pref = Preferences(['simple'], ['general'], {}, [])
         url_params = (
             'eJx1Vk1z4zYM_TXxRZNMd7eddg8-pe21nWnvGoiEJEQkofDDtvzrC1qSRdnbQxQTBA'
             'Hw8eGRCiJ27AnDsUOHHszBgOsSdHjU-Pr7HwfDCkweHCBFVmxHgxGPB7LiU4-eL9Px'
@@ -155,8 +166,48 @@ class TestPreferences(SearxTestCase):  # pylint: disable=missing-class-docstring
             'd-DZy7PtaVp2WgvPBpzCXUL_J1OGex48RVmOXzBU8_N3kqekkefRDzxNK2_Klp9mBJ'
             'wsUnXyRqq1mScHuYalUY7_AZTCR4s=&q='
         )
-        pref.parse_encoded_data(url_params)
+        self.preferences.parse_encoded_data(url_params)
         self.assertEqual(
-            vars(pref.key_value_settings['categories']),
+            vars(self.preferences.key_value_settings['categories']),
             {'value': ['general'], 'locked': False, 'choices': ['general', 'none']},
         )
+
+    def test_save_key_value_setting(self):
+        setting_key = 'foo'
+        setting_value = 'bar'
+
+        cookie_callback = {}
+
+        def set_cookie_callback(name, value, max_age):  # pylint: disable=unused-argument
+            cookie_callback[name] = value
+
+        response_mock = Mock(flask.Response)
+        response_mock.set_cookie = set_cookie_callback
+        self.preferences.key_value_settings = {
+            setting_key: Setting(
+                setting_value,
+                locked=False,
+            ),
+        }
+        self.preferences.save(response_mock)
+        self.assertIn(setting_key, cookie_callback)
+        self.assertEqual(cookie_callback[setting_key], setting_value)
+
+    def test_false_key_value_setting(self):
+        setting_key = 'foo'
+
+        cookie_callback = {}
+
+        def set_cookie_callback(name, value, max_age):  # pylint: disable=unused-argument
+            cookie_callback[name] = value
+
+        response_mock = Mock(flask.Response)
+        response_mock.set_cookie = set_cookie_callback
+        self.preferences.key_value_settings = {
+            setting_key: Setting(
+                '',
+                locked=True,
+            ),
+        }
+        self.preferences.save(response_mock)
+        self.assertNotIn(setting_key, cookie_callback)

@@ -43,11 +43,11 @@
       createClearButton(qinput);
 
       // autocompleter
-      if (searxng.settings.autocomplete_provider) {
+      if (searxng.settings.autocomplete) {
         searxng.autocomplete = AutoComplete.call(w, {
           Url: "./autocompleter",
           EmptyMessage: searxng.settings.translations.no_item_found,
-          HttpMethod: searxng.settings.http_method,
+          HttpMethod: searxng.settings.method,
           HttpHeaders: {
             "Content-type": "application/x-www-form-urlencoded",
             "X-Requested-With": "XMLHttpRequest"
@@ -166,20 +166,41 @@
       searxng.on(d.getElementById('language'), 'change', submitIfQuery);
     }
 
-    // most common browsers at the time of writing this support :has, except for Firefox
-    // can be removed when Firefox / Firefox ESL starts supporting it as well
-    try {
-      // this fails when the browser does not support :has
-      d.querySelector("html:has(body)");
-    } catch (_) {
-      // manually deselect the old selection when a new category is selected
-      for (let button of d.querySelectorAll("button.category_button")) {
-        searxng.on(button, 'click', () => {
-          const selected = d.querySelector("button.category_button.selected");
-          console.log(selected);
-          selected.classList.remove("selected");
-        })
-      }
+    const categoryButtons = d.querySelectorAll("button.category_button");
+    for (let button of categoryButtons) {
+      searxng.on(button, 'click', (event) => {
+        if (event.shiftKey) {
+          event.preventDefault();
+          button.classList.toggle("selected");
+          return;
+        }
+
+        // manually deselect the old selection when a new category is selected
+        const selectedCategories = d.querySelectorAll("button.category_button.selected");
+        for (let categoryButton of selectedCategories) {
+          categoryButton.classList.remove("selected");
+        }
+        button.classList.add("selected");
+      })
+    }
+
+    // override form submit action to update the actually selected categories
+    const form = d.querySelector("#search");
+    if (form != null) {
+      searxng.on(form, 'submit', (event) => {
+        event.preventDefault();
+        const categoryValuesInput = d.querySelector("#selected-categories");
+        if (categoryValuesInput) {
+          let categoryValues = [];
+          for (let categoryButton of categoryButtons) {
+            if (categoryButton.classList.contains("selected")) {
+              categoryValues.push(categoryButton.name.replace("category_", ""));
+            }
+          }
+          categoryValuesInput.value = categoryValues.join(",");
+        }
+        form.submit();
+      });
     }
   });
 

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Searx preferences implementation.
 """
+from __future__ import annotations
 
 # pylint: disable=useless-object-inheritance
 
@@ -13,12 +14,14 @@ from collections import OrderedDict
 import flask
 import babel
 
+import searx.plugins
+
 from searx import settings, autocomplete, favicons
 from searx.enginelib import Engine
-from searx.plugins import Plugin
+from searx.engines import DEFAULT_CATEGORY
+from searx.extended_types import SXNG_Request
 from searx.locales import LOCALE_NAMES
 from searx.webutils import VALID_LANGUAGE_CODE
-from searx.engines import DEFAULT_CATEGORY
 
 
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5  # 5 years
@@ -312,7 +315,7 @@ class EnginesSetting(BooleanChoices):
 class PluginsSetting(BooleanChoices):
     """Plugin settings"""
 
-    def __init__(self, default_value, plugins: Iterable[Plugin]):
+    def __init__(self, default_value, plugins: Iterable[searx.plugins.Plugin]):
         super().__init__(default_value, {plugin.id: plugin.default_on for plugin in plugins})
 
     def transform_form_items(self, items):
@@ -325,7 +328,7 @@ class ClientPref:
     # hint: searx.webapp.get_client_settings should be moved into this class
 
     locale: babel.Locale
-    """Locale prefered by the client."""
+    """Locale preferred by the client."""
 
     def __init__(self, locale: Optional[babel.Locale] = None):
         self.locale = locale
@@ -340,7 +343,7 @@ class ClientPref:
         return tag
 
     @classmethod
-    def from_http_request(cls, http_request: flask.Request):
+    def from_http_request(cls, http_request: SXNG_Request):
         """Build ClientPref object from HTTP request.
 
         - `Accept-Language used for locale setting
@@ -375,11 +378,11 @@ class Preferences:
 
     def __init__(
         self,
-        themes: List[str],
-        categories: List[str],
-        engines: Dict[str, Engine],
-        plugins: Iterable[Plugin],
-        client: Optional[ClientPref] = None,
+        themes: list[str],
+        categories: list[str],
+        engines: dict[str, Engine],
+        plugins: searx.plugins.PluginStorage,
+        client: ClientPref | None = None,
     ):
 
         super().__init__()
@@ -472,6 +475,10 @@ class Preferences:
                 settings['ui']['hotkeys'],
                 choices=['default', 'vim']
             ),
+            'url_formatting': EnumStringSetting(
+                settings['ui']['url_formatting'],
+                choices=['pretty', 'full', 'host']
+            ),
             # fmt: on
         }
 
@@ -479,7 +486,6 @@ class Preferences:
         self.plugins = PluginsSetting('plugins', plugins=plugins)
         self.tokens = SetSetting('tokens')
         self.client = client or ClientPref()
-        self.unknown_params: Dict[str, str] = {}
 
     def get_as_url_params(self):
         """Return preferences as URL parameters"""
@@ -523,10 +529,6 @@ class Preferences:
                 self.plugins.parse_cookie(input_data.get('disabled_plugins', ''), input_data.get('enabled_plugins', ''))
             elif user_setting_name == 'tokens':
                 self.tokens.parse(user_setting)
-            elif not any(
-                user_setting_name.startswith(x) for x in ['enabled_', 'disabled_', 'engine_', 'category_', 'plugin_']
-            ):
-                self.unknown_params[user_setting_name] = user_setting
 
     def parse_form(self, input_data: Dict[str, str]):
         """Parse formular (``<input>``) data from a ``flask.request.form``"""
@@ -551,8 +553,7 @@ class Preferences:
                 disabled_plugins.append(user_setting_name)
             elif user_setting_name == 'tokens':
                 self.tokens.parse_form(user_setting)
-            else:
-                self.unknown_params[user_setting_name] = user_setting
+
         self.key_value_settings['categories'].parse_form(enabled_categories)
         self.engines.parse_form(disabled_engines)
         self.plugins.parse_form(disabled_plugins)
@@ -563,8 +564,6 @@ class Preferences:
         ret_val = None
         if user_setting_name in self.key_value_settings:
             ret_val = self.key_value_settings[user_setting_name].get_value()
-        if user_setting_name in self.unknown_params:
-            ret_val = self.unknown_params[user_setting_name]
         return ret_val
 
     def save(self, resp: flask.Response):
@@ -577,8 +576,6 @@ class Preferences:
         self.engines.save(resp)
         self.plugins.save(resp)
         self.tokens.save('tokens', resp)
-        for k, v in self.unknown_params.items():
-            resp.set_cookie(k, v, max_age=COOKIE_MAX_AGE)
         return resp
 
     def validate_token(self, engine):

@@ -1,37 +1,44 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# pylint: disable=missing-module-docstring
+# pylint: disable=missing-module-docstring,disable=missing-class-docstring
 
-
+import logging
 from datetime import datetime
 from unittest.mock import Mock
 from requests import HTTPError
 from parameterized import parameterized
-from searx.engines import load_engines, tineye
+
+import searx.search
+import searx.engines
 from tests import SearxTestCase
 
 
-class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
+class TinEyeTests(SearxTestCase):
+
+    TEST_SETTINGS = "test_tineye.yml"
 
     def setUp(self):
-        load_engines([{'name': 'tineye', 'engine': 'tineye', 'shortcut': 'tin', 'timeout': 9.0, 'disabled': True}])
+        super().setUp()
+        self.tineye = searx.engines.engines['tineye']
+        self.tineye.logger.setLevel(logging.INFO)
 
     def tearDown(self):
-        load_engines([])
+        searx.search.load_engines([])
 
     def test_status_code_raises(self):
         response = Mock()
         response.status_code = 401
         response.raise_for_status.side_effect = HTTPError()
-        self.assertRaises(HTTPError, lambda: tineye.response(response))
+        self.assertRaises(HTTPError, lambda: self.tineye.response(response))
 
     @parameterized.expand([(400), (422)])
     def test_returns_empty_list(self, status_code):
         response = Mock()
-        response.json.return_value = {}
+        response.json.return_value = {"suggestions": {"key": "Download Error"}}
         response.status_code = status_code
         response.raise_for_status.side_effect = HTTPError()
-        results = tineye.response(response)
-        self.assertEqual(0, len(results))
+        with self.assertLogs(self.tineye.logger):
+            results = self.tineye.response(response)
+            self.assertEqual(0, len(results))
 
     def test_logs_format_for_422(self):
         response = Mock()
@@ -39,9 +46,9 @@ class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
         response.status_code = 422
         response.raise_for_status.side_effect = HTTPError()
 
-        with self.assertLogs(tineye.logger) as assert_logs_context:
-            tineye.response(response)
-            self.assertIn(tineye.FORMAT_NOT_SUPPORTED, ','.join(assert_logs_context.output))
+        with self.assertLogs(self.tineye.logger) as assert_logs_context:
+            self.tineye.response(response)
+            self.assertIn(self.tineye.FORMAT_NOT_SUPPORTED, ','.join(assert_logs_context.output))
 
     def test_logs_signature_for_422(self):
         response = Mock()
@@ -49,9 +56,9 @@ class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
         response.status_code = 422
         response.raise_for_status.side_effect = HTTPError()
 
-        with self.assertLogs(tineye.logger) as assert_logs_context:
-            tineye.response(response)
-            self.assertIn(tineye.NO_SIGNATURE_ERROR, ','.join(assert_logs_context.output))
+        with self.assertLogs(self.tineye.logger) as assert_logs_context:
+            self.tineye.response(response)
+            self.assertIn(self.tineye.NO_SIGNATURE_ERROR, ','.join(assert_logs_context.output))
 
     def test_logs_download_for_422(self):
         response = Mock()
@@ -59,9 +66,9 @@ class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
         response.status_code = 422
         response.raise_for_status.side_effect = HTTPError()
 
-        with self.assertLogs(tineye.logger) as assert_logs_context:
-            tineye.response(response)
-            self.assertIn(tineye.DOWNLOAD_ERROR, ','.join(assert_logs_context.output))
+        with self.assertLogs(self.tineye.logger) as assert_logs_context:
+            self.tineye.response(response)
+            self.assertIn(self.tineye.DOWNLOAD_ERROR, ','.join(assert_logs_context.output))
 
     def test_logs_description_for_400(self):
         description = 'There was a problem with that request. Error ID: ad5fc955-a934-43c1-8187-f9a61d301645'
@@ -70,8 +77,8 @@ class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
         response.status_code = 400
         response.raise_for_status.side_effect = HTTPError()
 
-        with self.assertLogs(tineye.logger) as assert_logs_context:
-            tineye.response(response)
+        with self.assertLogs(self.tineye.logger) as assert_logs_context:
+            self.tineye.response(response)
             self.assertIn(description, ','.join(assert_logs_context.output))
 
     def test_crawl_date_parses(self):
@@ -90,5 +97,5 @@ class TinEyeTests(SearxTestCase):  # pylint: disable=missing-class-docstring
             ]
         }
         response.status_code = 200
-        results = tineye.response(response)
+        results = self.tineye.response(response)
         self.assertEqual(date, results[0]['publishedDate'])

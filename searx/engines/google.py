@@ -25,6 +25,7 @@ from searx.locales import language_tag, region_tag, get_official_locales
 from searx.network import get  # see https://github.com/searxng/searxng/issues/762
 from searx.exceptions import SearxEngineCaptchaException
 from searx.enginelib.traits import EngineTraits
+from searx.result_types import EngineResults
 
 if TYPE_CHECKING:
     import logging
@@ -58,11 +59,6 @@ filter_mapping = {0: 'off', 1: 'medium', 2: 'high'}
 
 # specific xpath variables
 # ------------------------
-
-results_xpath = './/div[contains(@jscontroller, "SC7lYd")]'
-title_xpath = './/a/h3[1]'
-href_xpath = './/a[h3]/@href'
-content_xpath = './/div[contains(@data-sncf, "1")]'
 
 # Suggestions are links placed in a *card-section*, we extract only the text
 # from the links not the links itself.
@@ -320,12 +316,12 @@ def _parse_data_images(dom):
     return data_image_map
 
 
-def response(resp):
+def response(resp) -> EngineResults:
     """Get response from google's search request"""
     # pylint: disable=too-many-branches, too-many-statements
     detect_google_sorry(resp)
 
-    results = []
+    results = EngineResults()
 
     # convert the text to dom
     dom = html.fromstring(resp.text)
@@ -336,31 +332,36 @@ def response(resp):
     for item in answer_list:
         for bubble in eval_xpath(item, './/div[@class="nnFGuf"]'):
             bubble.drop_tree()
-        results.append(
-            {
-                'answer': extract_text(item),
-                'url': (eval_xpath(item, '../..//a/@href') + [None])[0],
-            }
+        results.add(
+            results.types.Answer(
+                answer=extract_text(item),
+                url=(eval_xpath(item, '../..//a/@href') + [None])[0],
+            )
         )
 
     # parse results
 
-    for result in eval_xpath_list(dom, results_xpath):  # pylint: disable=too-many-nested-blocks
+    for result in eval_xpath_list(dom, './/div[contains(@jscontroller, "SC7lYd")]'):
+        # pylint: disable=too-many-nested-blocks
 
         try:
-            title_tag = eval_xpath_getindex(result, title_xpath, 0, default=None)
+            title_tag = eval_xpath_getindex(result, './/a/h3[1]', 0, default=None)
             if title_tag is None:
                 # this not one of the common google results *section*
                 logger.debug('ignoring item from the result_xpath list: missing title')
                 continue
             title = extract_text(title_tag)
 
-            url = eval_xpath_getindex(result, href_xpath, 0, None)
+            url = eval_xpath_getindex(result, './/a[h3]/@href', 0, None)
             if url is None:
                 logger.debug('ignoring item from the result_xpath list: missing url of title "%s"', title)
                 continue
 
-            content_nodes = eval_xpath(result, content_xpath)
+            content_nodes = eval_xpath(result, './/div[contains(@data-sncf, "1")]')
+            for item in content_nodes:
+                for script in item.xpath(".//script"):
+                    script.getparent().remove(script)
+
             content = extract_text(content_nodes)
 
             if not content:
