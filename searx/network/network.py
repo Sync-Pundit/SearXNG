@@ -12,7 +12,7 @@ from typing import Dict
 
 import httpx
 
-from searx import logger, searx_debug
+from searx import logger, sxng_debug
 from searx.extended_types import SXNG_Response
 from .client import new_client, get_loop, AsyncHTTPTransportNoHttp
 from .raise_for_httperror import raise_for_httperror
@@ -180,13 +180,13 @@ class Network:
         Network._TOR_CHECK_RESULT[proxies] = result
         return result
 
-    async def get_client(self, verify=None, max_redirects=None):
+    async def get_client(self, verify=None, max_redirects=None) -> httpx.AsyncClient:
         verify = self.verify if verify is None else verify
         max_redirects = self.max_redirects if max_redirects is None else max_redirects
         local_address = next(self._local_addresses_cycle)
         proxies = next(self._proxies_cycle)  # is a tuple so it can be part of the key
         key = (verify, max_redirects, local_address, proxies)
-        hook_log_response = self.log_response if searx_debug else None
+        hook_log_response = self.log_response if sxng_debug else None
         if key not in self._clients or self._clients[key].is_closed:
             client = new_client(
                 self.enable_http,
@@ -269,6 +269,8 @@ class Network:
         kwargs_clients = Network.extract_kwargs_clients(kwargs)
         while retries >= 0:  # pragma: no cover
             client = await self.get_client(**kwargs_clients)
+            cookies = kwargs.pop("cookies", None)
+            client.cookies = httpx.Cookies(cookies)
             try:
                 if stream:
                     response = client.stream(method, url, **kwargs)

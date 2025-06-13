@@ -12,6 +12,7 @@
      favicon_resolver: ""
      default_lang: ""
      ban_time_on_fail: 5
+     max_page: 0
      max_ban_time_on_fail: 120
      suspended_times:
        SearxEngineAccessDenied: 86400
@@ -33,19 +34,22 @@
 ``autocomplete``:
   Existing autocomplete backends, leave blank to turn it off.
 
-  - ``baidu```
-  - ``brave```
-  - ``dbpedia```
-  - ``duckduckgo```
-  - ``google```
-  - ``mwmbl```
-  - ``qwant```
-  - ``seznam```
-  - ``startpage```
-  - ``stract```
-  - ``swisscows```
-  - ``wikipedia```
-  - ``yandex```
+  - ``360search``
+  - ``baidu``
+  - ``brave``
+  - ``dbpedia``
+  - ``duckduckgo``
+  - ``google``
+  - ``mwmbl``
+  - ``naver``
+  - ``quark``
+  - ``qwant``
+  - ``seznam``
+  - ``sogou``
+  - ``stract``
+  - ``swisscows``
+  - ``wikipedia``
+  - ``yandex``
 
 ``favicon_resolver``:
   To activate favicons in SearXNG's result list select a default
@@ -54,11 +58,11 @@
 
 ``default_lang``:
   Default search language - leave blank to detect from browser information or
-  use codes from :origin:`searx/languages.py`.
+  use codes from :origin:`searx/sxng_locales.py`.
 
 ``languages``:
   List of available languages - leave unset to use all codes from
-  :origin:`searx/languages.py`.  Otherwise list codes of available languages.
+  :origin:`searx/sxng_locales.py`.  Otherwise list codes of available languages.
   The ``all`` value is shown as the ``Default language`` in the user interface
   (in most cases, it is meant to send the query without a language parameter ;
   in some cases, it means the English language) Example:
@@ -73,6 +77,11 @@
        - it-IT
        - fr
        - fr-BE
+
+``max_page``:
+  If engine supports paging, 0 means unlimited numbers of pages.  The value
+  is only applied if the engine itself does not have a max value that is
+  lower than this one.
 
 ``ban_time_on_fail``:
   Ban time in seconds after engine errors.

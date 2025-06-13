@@ -13,7 +13,9 @@ close to the implementation, its just a simple example.  To get in use of this
 """
 
 import json
+
 from searx.result_types import EngineResults
+from searx.enginelib import EngineCache
 
 engine_type = 'offline'
 categories = ['general']
@@ -29,16 +31,20 @@ about = {
 }
 
 # if there is a need for globals, use a leading underline
-_my_offline_engine = None
+_my_offline_engine: str = ""
+
+CACHE: EngineCache
+"""Persistent (SQLite) key/value cache that deletes its values after ``expire``
+seconds."""
 
 
-def init(engine_settings=None):
+def init(engine_settings):
     """Initialization of the (offline) engine.  The origin of this demo engine is a
     simple json string which is loaded in this example while the engine is
-    initialized.
+    initialized."""
+    global _my_offline_engine, CACHE  # pylint: disable=global-statement
 
-    """
-    global _my_offline_engine  # pylint: disable=global-statement
+    CACHE = EngineCache(engine_settings["name"])  # type:ignore
 
     _my_offline_engine = (
         '[ {"value": "%s"}'
@@ -50,24 +56,31 @@ def init(engine_settings=None):
 
 
 def search(query, request_params) -> EngineResults:
-    """Query (offline) engine and return results.  Assemble the list of results from
-    your local engine.  In this demo engine we ignore the 'query' term, usual
-    you would pass the 'query' term to your local engine to filter out the
+    """Query (offline) engine and return results.  Assemble the list of results
+    from your local engine.  In this demo engine we ignore the 'query' term,
+    usual you would pass the 'query' term to your local engine to filter out the
     results.
-
     """
     res = EngineResults()
+    count = CACHE.get("count", 0)
 
-    result_list = json.loads(_my_offline_engine)
-
-    for row in result_list:
-        entry = {
+    for row in json.loads(_my_offline_engine):
+        count += 1
+        kvmap = {
             'query': query,
             'language': request_params['searxng_locale'],
             'value': row.get("value"),
-            # choose a result template or comment out to use the *default*
-            'template': 'key-value.html',
         }
-        res.append(entry)
+        res.add(
+            res.types.KeyValue(
+                caption=f"Demo Offline Engine Result #{count}",
+                key_title="Name",
+                value_title="Value",
+                kvmap=kvmap,
+            )
+        )
+    res.add(res.types.LegacyResult(number_of_results=count))
 
+    # cache counter value for 20sec
+    CACHE.set("count", count, expire=20)
     return res

@@ -44,6 +44,29 @@ time_range_dict = {
     'month': ('1m', 'm'),
 }
 
+region2domain = {
+    "CO": "co.search.yahoo.com",  # Colombia
+    "TH": "th.search.yahoo.com",  # Thailand
+    "VE": "ve.search.yahoo.com",  # Venezuela
+    "CL": "cl.search.yahoo.com",  # Chile
+    "HK": "hk.search.yahoo.com",  # Hong Kong
+    "PE": "pe.search.yahoo.com",  # Peru
+    "CA": "ca.search.yahoo.com",  # Canada
+    "DE": "de.search.yahoo.com",  # Germany
+    "FR": "fr.search.yahoo.com",  # France
+    "TW": "tw.search.yahoo.com",  # Taiwan
+    "GB": "uk.search.yahoo.com",  # United Kingdom
+    "UK": "uk.search.yahoo.com",
+    "BR": "br.search.yahoo.com",  # Brazil
+    "IN": "in.search.yahoo.com",  # India
+    "ES": "espanol.search.yahoo.com",  # Espanol
+    "PH": "ph.search.yahoo.com",  # Philippines
+    "AR": "ar.search.yahoo.com",  # Argentina
+    "MX": "mx.search.yahoo.com",  # Mexico
+    "SG": "sg.search.yahoo.com",  # Singapore
+}
+"""Map regions to domain"""
+
 lang2domain = {
     'zh_chs': 'hk.search.yahoo.com',
     'zh_cht': 'tw.search.yahoo.com',
@@ -63,21 +86,52 @@ lang2domain = {
 }
 """Map language to domain"""
 
-locale_aliases = {
-    'zh': 'zh_Hans',
-    'zh-HK': 'zh_Hans',
-    'zh-CN': 'zh_Hans',  # dead since 2015 / routed to hk.search.yahoo.com
-    'zh-TW': 'zh_Hant',
+yahoo_languages = {
+    "all": "any",
+    "ar": "ar",  # Arabic
+    "bg": "bg",  # Bulgarian
+    "cs": "cs",  # Czech
+    "da": "da",  # Danish
+    "de": "de",  # German
+    "el": "el",  # Greek
+    "en": "en",  # English
+    "es": "es",  # Spanish
+    "et": "et",  # Estonian
+    "fi": "fi",  # Finnish
+    "fr": "fr",  # French
+    "he": "he",  # Hebrew
+    "hr": "hr",  # Croatian
+    "hu": "hu",  # Hungarian
+    "it": "it",  # Italian
+    "ja": "ja",  # Japanese
+    "ko": "ko",  # Korean
+    "lt": "lt",  # Lithuanian
+    "lv": "lv",  # Latvian
+    "nl": "nl",  # Dutch
+    "no": "no",  # Norwegian
+    "pl": "pl",  # Polish
+    "pt": "pt",  # Portuguese
+    "ro": "ro",  # Romanian
+    "ru": "ru",  # Russian
+    "sk": "sk",  # Slovak
+    "sl": "sl",  # Slovenian
+    "sv": "sv",  # Swedish
+    "th": "th",  # Thai
+    "tr": "tr",  # Turkish
+    "zh": "zh_chs",  # Chinese (Simplified)
+    "zh_Hans": "zh_chs",
+    'zh-CN': "zh_chs",
+    "zh_Hant": "zh_cht",  # Chinese (Traditional)
+    "zh-HK": "zh_cht",
+    'zh-TW': "zh_cht",
 }
 
 
 def request(query, params):
     """build request"""
 
-    lang = locale_aliases.get(params['language'], None)
-    if not lang:
-        lang = params['language'].split('-')[0]
-    lang = traits.get_language(lang, traits.all_locale)
+    lang, region = (params["language"].split("-") + [None])[:2]
+    lang = yahoo_languages.get(lang, "any")
 
     offset = (params['pageno'] - 1) * 7 + 1
     age, btf = time_range_dict.get(params['time_range'], ('', ''))
@@ -96,9 +150,11 @@ def request(query, params):
         }
     )
 
-    domain = lang2domain.get(lang, '%s.search.yahoo.com' % lang)
+    domain = region2domain.get(region)
+    if not domain:
+        domain = lang2domain.get(lang, '%s.search.yahoo.com' % lang)
     params['url'] = 'https://%s/search?%s' % (domain, args)
-    return params
+    params['domain'] = domain
 
 
 def parse_url(url_string):
@@ -126,14 +182,22 @@ def response(resp):
     results = []
     dom = html.fromstring(resp.text)
 
+    url_xpath = './/div[contains(@class,"compTitle")]/h3/a/@href'
+    title_xpath = './/h3//a/@aria-label'
+
+    domain = resp.search_params['domain']
+    if domain == "search.yahoo.com":
+        url_xpath = './/div[contains(@class,"compTitle")]/a/@href'
+        title_xpath = './/div[contains(@class,"compTitle")]/a/h3/span'
+
     # parse results
     for result in eval_xpath_list(dom, '//div[contains(@class,"algo-sr")]'):
-        url = eval_xpath_getindex(result, './/h3/a/@href', 0, default=None)
+        url = eval_xpath_getindex(result, url_xpath, 0, default=None)
         if url is None:
             continue
         url = parse_url(url)
 
-        title = eval_xpath_getindex(result, './/h3//a/@aria-label', 0, default='')
+        title = eval_xpath_getindex(result, title_xpath, 0, default='')
         title: str = extract_text(title)
         content = eval_xpath_getindex(result, './/div[contains(@class, "compText")]', 0, default='')
         content: str = extract_text(content, allow_none=True)
@@ -154,39 +218,3 @@ def response(resp):
         results.append({'suggestion': extract_text(suggestion)})
 
     return results
-
-
-def fetch_traits(engine_traits: EngineTraits):
-    """Fetch languages from yahoo"""
-
-    # pylint: disable=import-outside-toplevel
-    import babel
-    from searx import network
-    from searx.locales import language_tag
-
-    engine_traits.all_locale = 'any'
-
-    resp = network.get('https://search.yahoo.com/preferences/languages')
-    if not resp.ok:
-        print("ERROR: response from yahoo is not OK.")
-
-    dom = html.fromstring(resp.text)
-    offset = len('lang_')
-
-    eng2sxng = {'zh_chs': 'zh_Hans', 'zh_cht': 'zh_Hant'}
-
-    for val in eval_xpath_list(dom, '//div[contains(@class, "lang-item")]/input/@value'):
-        eng_tag = val[offset:]
-
-        try:
-            sxng_tag = language_tag(babel.Locale.parse(eng2sxng.get(eng_tag, eng_tag)))
-        except babel.UnknownLocaleError:
-            print('ERROR: unknown language --> %s' % eng_tag)
-            continue
-
-        conflict = engine_traits.languages.get(sxng_tag)
-        if conflict:
-            if conflict != eng_tag:
-                print("CONFLICT: babel %s --> %s, %s" % (sxng_tag, conflict, eng_tag))
-            continue
-        engine_traits.languages[sxng_tag] = eng_tag

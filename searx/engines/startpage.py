@@ -74,28 +74,29 @@ Startpage's category (for Web-search, News, Videos, ..) is set by
 
 .. hint::
 
-   The default category is ``web`` .. and other categories than ``web`` are not
-   yet implemented.
+  Supported categories are ``web``, ``news`` and ``images``.
 
 """
 # pylint: disable=too-many-statements
+from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from collections import OrderedDict
 import re
 from unicodedata import normalize, combining
-from time import time
 from datetime import datetime, timedelta
+from json import loads
 
 import dateutil.parser
 import lxml.html
 import babel.localedata
 
-from searx.utils import extract_text, eval_xpath, gen_useragent
+from searx.utils import extr, extract_text, eval_xpath, gen_useragent, html_to_text, humanize_bytes, remove_pua_from_str
 from searx.network import get  # see https://github.com/searxng/searxng/issues/762
 from searx.exceptions import SearxEngineCaptchaException
 from searx.locales import region_tag
 from searx.enginelib.traits import EngineTraits
+from searx.enginelib import EngineCache
 
 if TYPE_CHECKING:
     import logging
@@ -158,10 +159,21 @@ search_form_xpath = '//form[@id="search"]'
     </form>
 """
 
-# timestamp of the last fetch of 'sc' code
-sc_code_ts = 0
-sc_code = ''
-sc_code_cache_sec = 30
+
+CACHE: EngineCache
+"""Persistent (SQLite) key/value cache that deletes its values after ``expire``
+seconds."""
+
+
+def init(_):
+    global CACHE  # pylint: disable=global-statement
+
+    # hint: all three startpage engines (WEB, Images & News) can/should use the
+    # same sc_code ..
+    CACHE = EngineCache("startpage")  # type:ignore
+
+
+sc_code_cache_sec = 3600
 """Time in seconds the sc-code is cached in memory :py:obj:`get_sc_code`."""
 
 
@@ -171,27 +183,19 @@ def get_sc_code(searxng_locale, params):
     Startpage puts a ``sc`` argument on every HTML :py:obj:`search form
     <search_form_xpath>`.  Without this argument Startpage considers the request
     is from a bot.  We do not know what is encoded in the value of the ``sc``
-    argument, but it seems to be a kind of a *time-stamp*.
+    argument, but it seems to be a kind of a *timestamp*.
 
     Startpage's search form generates a new sc-code on each request.  This
-    function scrap a new sc-code from Startpage's home page every
-    :py:obj:`sc_code_cache_sec` seconds.
+    function scrapes a new sc-code from Startpage's home page every
+    :py:obj:`sc_code_cache_sec` seconds."""
 
-    """
+    sc_code = CACHE.get("SC_CODE")
 
-    global sc_code_ts, sc_code  # pylint: disable=global-statement
-
-    if sc_code and (time() < (sc_code_ts + sc_code_cache_sec)):
-        logger.debug("get_sc_code: reuse '%s'", sc_code)
+    if sc_code:
+        logger.debug("get_sc_code: using cached value: %s", sc_code)
         return sc_code
 
     headers = {**params['headers']}
-    headers['Origin'] = base_url
-    headers['Referer'] = base_url + '/'
-    # headers['Connection'] = 'keep-alive'
-    # headers['Accept-Encoding'] = 'gzip, deflate, br'
-    # headers['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-    # headers['User-Agent'] = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:105.0) Gecko/20100101 Firefox/105.0'
 
     # add Accept-Language header
     if searxng_locale == 'all':
@@ -208,9 +212,9 @@ def get_sc_code(searxng_locale, params):
             )
         headers['Accept-Language'] = ac_lang
 
-    get_sc_url = base_url + '/?sc=%s' % (sc_code)
-    logger.debug("query new sc time-stamp ... %s", get_sc_url)
-    logger.debug("headers: %s", headers)
+    get_sc_url = base_url + '/'
+    logger.debug("get_sc_code: querying new sc timestamp @ %s", get_sc_url)
+    logger.debug("get_sc_code: request headers: %s", headers)
     resp = get(get_sc_url, headers=headers)
 
     # ?? x = network.get('https://www.startpage.com/sp/cdn/images/filter-chevron.svg', headers=headers)
@@ -229,19 +233,20 @@ def get_sc_code(searxng_locale, params):
     except IndexError as exc:
         logger.debug("suspend startpage API --> https://github.com/searxng/searxng/pull/695")
         raise SearxEngineCaptchaException(
-            message="get_sc_code: [PR-695] query new sc time-stamp failed! (%s)" % resp.url,  # type: ignore
+            message="get_sc_code: [PR-695] querying new sc timestamp failed! (%s)" % resp.url,  # type: ignore
         ) from exc
 
-    sc_code_ts = time()
+    sc_code = str(sc_code)
     logger.debug("get_sc_code: new value is: %s", sc_code)
+    CACHE.set(key="SC_CODE", value=sc_code, expire=sc_code_cache_sec)
     return sc_code
 
 
 def request(query, params):
     """Assemble a Startpage request.
 
-    To avoid CAPTCHA we need to send a well formed HTTP POST request with a
-    cookie.  We need to form a request that is identical to the request build by
+    To avoid CAPTCHAs we need to send a well formed HTTP POST request with a
+    cookie. We need to form a request that is identical to the request built by
     Startpage's search form:
 
     - in the cookie the **region** is selected
@@ -250,36 +255,33 @@ def request(query, params):
     Additionally the arguments form Startpage's search form needs to be set in
     HTML POST data / compare ``<input>`` elements: :py:obj:`search_form_xpath`.
     """
-    if startpage_categ == 'web':
-        return _request_cat_web(query, params)
-
-    logger.error("Startpages's category '%' is not yet implemented.", startpage_categ)
-    return params
-
-
-def _request_cat_web(query, params):
-
     engine_region = traits.get_region(params['searxng_locale'], 'en-US')
     engine_language = traits.get_language(params['searxng_locale'], 'en')
 
-    # build arguments
+    params['headers']['Origin'] = base_url
+    params['headers']['Referer'] = base_url + '/'
+
+    # Build form data
     args = {
         'query': query,
-        'cat': 'web',
+        'cat': startpage_categ,
         't': 'device',
-        'sc': get_sc_code(params['searxng_locale'], params),  # hint: this func needs HTTP headers,
+        'sc': get_sc_code(params['searxng_locale'], params),  # hint: this func needs HTTP headers
         'with_date': time_range_dict.get(params['time_range'], ''),
+        'abp': '1',
+        'abd': '1',
+        'abe': '1',
     }
 
     if engine_language:
         args['language'] = engine_language
         args['lui'] = engine_language
 
-    args['abp'] = '1'
     if params['pageno'] > 1:
         args['page'] = params['pageno']
+        args['segment'] = 'startpage.udog'
 
-    # build cookie
+    # Build cookie
     lang_homepage = 'en'
     cookie = OrderedDict()
     cookie['date_time'] = 'world'
@@ -304,86 +306,126 @@ def _request_cat_web(query, params):
     params['cookies']['preferences'] = 'N1N'.join(["%sEEE%s" % x for x in cookie.items()])
     logger.debug('cookie preferences: %s', params['cookies']['preferences'])
 
-    # POST request
     logger.debug("data: %s", args)
     params['data'] = args
     params['method'] = 'POST'
     params['url'] = search_url
-    params['headers']['Origin'] = base_url
-    params['headers']['Referer'] = base_url + '/'
-    # is the Accept header needed?
-    # params['headers']['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
 
     return params
 
 
-# get response from search-request
+def _parse_published_date(content: str) -> tuple[str, datetime | None]:
+    published_date = None
+
+    # check if search result starts with something like: "2 Sep 2014 ... "
+    if re.match(r"^([1-9]|[1-2][0-9]|3[0-1]) [A-Z][a-z]{2} [0-9]{4} \.\.\. ", content):
+        date_pos = content.find('...') + 4
+        date_string = content[0 : date_pos - 5]
+        # fix content string
+        content = content[date_pos:]
+
+        try:
+            published_date = dateutil.parser.parse(date_string, dayfirst=True)
+        except ValueError:
+            pass
+
+    # check if search result starts with something like: "5 days ago ... "
+    elif re.match(r"^[0-9]+ days? ago \.\.\. ", content):
+        date_pos = content.find('...') + 4
+        date_string = content[0 : date_pos - 5]
+
+        # calculate datetime
+        published_date = datetime.now() - timedelta(days=int(re.match(r'\d+', date_string).group()))  # type: ignore
+
+        # fix content string
+        content = content[date_pos:]
+
+    return content, published_date
+
+
+def _get_web_result(result):
+    content = html_to_text(result.get('description'))
+    content, publishedDate = _parse_published_date(content)
+
+    return {
+        'url': result['clickUrl'],
+        'title': html_to_text(result['title']),
+        'content': content,
+        'publishedDate': publishedDate,
+    }
+
+
+def _get_news_result(result):
+
+    title = remove_pua_from_str(html_to_text(result['title']))
+    content = remove_pua_from_str(html_to_text(result.get('description')))
+
+    publishedDate = None
+    if result.get('date'):
+        publishedDate = datetime.fromtimestamp(result['date'] / 1000)
+
+    thumbnailUrl = None
+    if result.get('thumbnailUrl'):
+        thumbnailUrl = base_url + result['thumbnailUrl']
+
+    return {
+        'url': result['clickUrl'],
+        'title': title,
+        'content': content,
+        'publishedDate': publishedDate,
+        'thumbnail': thumbnailUrl,
+    }
+
+
+def _get_image_result(result) -> dict[str, Any] | None:
+    url = result.get('altClickUrl')
+    if not url:
+        return None
+
+    thumbnailUrl = None
+    if result.get('thumbnailUrl'):
+        thumbnailUrl = base_url + result['thumbnailUrl']
+
+    resolution = None
+    if result.get('width') and result.get('height'):
+        resolution = f"{result['width']}x{result['height']}"
+
+    filesize = None
+    if result.get('filesize'):
+        size_str = ''.join(filter(str.isdigit, result['filesize']))
+        filesize = humanize_bytes(int(size_str))
+
+    return {
+        'template': 'images.html',
+        'url': url,
+        'title': html_to_text(result['title']),
+        'content': '',
+        'img_src': result.get('rawImageUrl'),
+        'thumbnail_src': thumbnailUrl,
+        'resolution': resolution,
+        'img_format': result.get('format'),
+        'filesize': filesize,
+    }
+
+
 def response(resp):
-    dom = lxml.html.fromstring(resp.text)
+    categ = startpage_categ.capitalize()
+    results_raw = '{' + extr(resp.text, f"React.createElement(UIStartpage.AppSerp{categ}, {{", '}})') + '}}'
+    results_json = loads(results_raw)
+    results_obj = results_json.get('render', {}).get('presenter', {}).get('regions', {})
 
-    if startpage_categ == 'web':
-        return _response_cat_web(dom)
-
-    logger.error("Startpages's category '%' is not yet implemented.", startpage_categ)
-    return []
-
-
-def _response_cat_web(dom):
     results = []
+    for results_categ in results_obj.get('mainline', []):
+        for item in results_categ.get('results', []):
+            if results_categ['display_type'] == 'web-google':
+                results.append(_get_web_result(item))
+            elif results_categ['display_type'] == 'news-bing':
+                results.append(_get_news_result(item))
+            elif 'images' in results_categ['display_type']:
+                item = _get_image_result(item)
+                if item:
+                    results.append(item)
 
-    # parse results
-    for result in eval_xpath(dom, '//div[@class="w-gl"]/div[contains(@class, "result")]'):
-        links = eval_xpath(result, './/a[contains(@class, "result-title result-link")]')
-        if not links:
-            continue
-        link = links[0]
-        url = link.attrib.get('href')
-
-        # block google-ad url's
-        if re.match(r"^http(s|)://(www\.)?google\.[a-z]+/aclk.*$", url):
-            continue
-
-        # block startpage search url's
-        if re.match(r"^http(s|)://(www\.)?startpage\.com/do/search\?.*$", url):
-            continue
-
-        title = extract_text(eval_xpath(link, 'h2'))
-        content = eval_xpath(result, './/p[contains(@class, "description")]')
-        content = extract_text(content, allow_none=True) or ''
-
-        published_date = None
-
-        # check if search result starts with something like: "2 Sep 2014 ... "
-        if re.match(r"^([1-9]|[1-2][0-9]|3[0-1]) [A-Z][a-z]{2} [0-9]{4} \.\.\. ", content):
-            date_pos = content.find('...') + 4
-            date_string = content[0 : date_pos - 5]
-            # fix content string
-            content = content[date_pos:]
-
-            try:
-                published_date = dateutil.parser.parse(date_string, dayfirst=True)
-            except ValueError:
-                pass
-
-        # check if search result starts with something like: "5 days ago ... "
-        elif re.match(r"^[0-9]+ days? ago \.\.\. ", content):
-            date_pos = content.find('...') + 4
-            date_string = content[0 : date_pos - 5]
-
-            # calculate datetime
-            published_date = datetime.now() - timedelta(days=int(re.match(r'\d+', date_string).group()))  # type: ignore
-
-            # fix content string
-            content = content[date_pos:]
-
-        if published_date:
-            # append result
-            results.append({'url': url, 'title': title, 'content': content, 'publishedDate': published_date})
-        else:
-            # append result
-            results.append({'url': url, 'title': title, 'content': content})
-
-    # return results
     return results
 
 

@@ -182,7 +182,7 @@ SCHEMA = {
         'base_url': SettingsValue((False, str), False, 'SEARXNG_BASE_URL'),
         'image_proxy': SettingsValue(bool, False, 'SEARXNG_IMAGE_PROXY'),
         'http_protocol_version': SettingsValue(('1.0', '1.1'), '1.0'),
-        'method': SettingsValue(('POST', 'GET'), 'POST'),
+        'method': SettingsValue(('POST', 'GET'), 'POST', 'SEARXNG_METHOD'),
         'default_http_headers': SettingsValue(dict, {}),
     },
     'redis': {
@@ -230,13 +230,7 @@ SCHEMA = {
         'extra_proxy_timeout': SettingsValue(int, 0),
         'networks': {},
     },
-    'result_proxy': {
-        'url': SettingsValue((None, str), None),
-        'key': SettingsBytesValue((None, bytes), None),
-        'proxify_results': SettingsValue(bool, False),
-    },
-    'plugins': SettingsValue(list, []),
-    'enabled_plugins': SettingsValue((None, list), None),
+    'plugins': SettingsValue(dict, {}),
     'checker': {
         'off_when_debug': SettingsValue(bool, True, None),
         'scheduling': SettingsValue((None, dict), None, None),

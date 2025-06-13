@@ -14,6 +14,7 @@ from searx.result_types import EngineResults
 if typing.TYPE_CHECKING:
     from searx.search import SearchWithPlugins
     from searx.extended_types import SXNG_Request
+    from searx.plugins import PluginCfg
 
 
 class SXNGPlugin(Plugin):
@@ -22,17 +23,18 @@ class SXNGPlugin(Plugin):
     """
 
     id = "hash_plugin"
-    default_on = True
     keywords = ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, plg_cfg: "PluginCfg") -> None:
+        super().__init__(plg_cfg)
 
         self.parser_re = re.compile(f"({'|'.join(self.keywords)}) (.*)", re.I)
         self.info = PluginInfo(
             id=self.id,
             name=gettext("Hash plugin"),
-            description=gettext("Converts strings to different hash digests."),
+            description=gettext(
+                "Converts strings to different hash digests. Available functions: md5, sha1, sha224, sha256, sha384, sha512."  # pylint:disable=line-too-long
+            ),
             examples=["sha512 The quick brown fox jumps over the lazy dog"],
             preference_section="query",
         )
