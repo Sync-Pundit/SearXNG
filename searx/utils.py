@@ -61,11 +61,9 @@ class _NotSetClass:  # pylint: disable=too-few-public-methods
 _NOTSET = _NotSetClass()
 
 
-def searx_useragent() -> str:
-    """Return the searx User Agent"""
-    return 'searx/{searx_version} {suffix}'.format(
-        searx_version=VERSION_TAG, suffix=settings['outgoing']['useragent_suffix']
-    ).strip()
+def searxng_useragent() -> str:
+    """Return the SearXNG User Agent"""
+    return f"SearXNG/{VERSION_TAG} {settings['outgoing']['useragent_suffix']}".strip()
 
 
 def gen_useragent(os_string: Optional[str] = None) -> str:
@@ -161,9 +159,11 @@ def html_to_text(html_str: str) -> str:
     s = _HTMLTextExtractor()
     try:
         s.feed(html_str)
+        s.close()
     except AssertionError:
         s = _HTMLTextExtractor()
         s.feed(escape(html_str, quote=True))
+        s.close()
     except _HTMLTextExtractorException:
         logger.debug("HTMLTextExtractor: invalid HTML\n%s", html_str)
     return s.get_text()

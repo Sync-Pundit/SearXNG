@@ -2,7 +2,7 @@ searxng is a fork from `searx <https://github.com/searx/searx>`_ and is
 maintained by Markus Heiser (`@return42 <https://github.com/return42>`_)
 
 People who have submitted patches/translations, reported bugs, consulted
-features or generally made searx better:
+features or generally made SearXNG better:
 
 - Adam Tauber `@asciimoo <https://github.com/asciimoo>`_
 - Matej Cotman `@matejc <https://github.com/matejc>`_
@@ -177,3 +177,4 @@ features or generally made searx better:
 - Daniel Mowitz `<https://daniel.mowitz.rocks>`
 - `Bearz314 <https://github.com/bearz314>`_
 - Tommaso Colella `<https://github.com/gioleppe>`
+- @AgentScrubbles
