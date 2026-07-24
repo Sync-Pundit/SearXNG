@@ -1,0 +1,89 @@
+# SearXNG override settings for the SyncPundit threat-hunter harness.
+#
+# Loaded via SEARXNG_SETTINGS_PATH (see prod/README.md).  Only DELTAS live
+# here — `use_default_settings: true` merges these over upstream's
+# searx/settings.yml, so upstream defaults keep flowing through on
+# `git merge upstream/master`.  Secrets come from the environment via the `!env`
+# tag (see searx/settings_loader.py); never hard-code keys in this file.
+
+use_default_settings: true
+
+# Instance branding. These belong here, NOT in searx/settings.yml — editing the
+# upstream defaults file means a merge conflict on every `git merge upstream`.
+general:
+  donation_url: https://buymeacoffee.com/sync_pundit
+  contact_url: mailto:searx@syncpundit.io
+
+brand:
+  new_issue_url: https://github.com/Sync-Pundit/searxng/issues/new
+  wiki_url: https://github.com/Sync-Pundit/searxng/wiki
+  issue_url: https://github.com/Sync-Pundit/searxng/issues
+  custom:
+    # Custom entries in the footer: [title]: [link]
+    links:
+      Find Me: https://links.syncpundit.io
+
+server:
+  # Rotate the secret out of the tracked defaults; supply via env.
+  secret_key: !env "SEARXNG_SECRET"
+
+  # MUST stay false. Upstream's searx/settings.yml defaults this to TRUE, and
+  # `use_default_settings: true` inherits it — but the old standalone prod
+  # settings.yml had it false, so leaving it unset silently flips behaviour.
+  # With public_instance true and no Valkey, searx/limiter.py calls
+  # sys.exit(1) at startup ("The limiter requires Valkey") and the container
+  # crash-loops. It also force-enables image_proxy and link_token.
+  # Only set true together with `limiter: true` AND the valkey service.
+  public_instance: false
+
+  # Also false in the old prod config; upstream defaults to true. Enabling it
+  # would route every result image through this instance (bandwidth + latency).
+  image_proxy: false
+
+  # GET instead of the upstream default POST. Required by the nginx JSON gate:
+  # nginx can't inspect a POST body, so `format=json` sent as form data would
+  # bypass a query-arg check. With GET, every search carries format= in the
+  # query string and nginx can refuse POST /search outright.
+  # Trade-off: queries become visible in browser history / server access logs.
+  # Upstream considers GET acceptable ("may be better for end users and their
+  # browsers"); revert to POST only if you also drop the nginx gate.
+  method: "GET"
+
+search:
+  # JSON output for programmatic use by the harness.
+  #
+  # SECURITY: this instance is internet-reachable (search.syncpundit.io) and
+  # runs with `limiter: false`.  Enabling JSON turns it into an open JSON search
+  # API.  Gate `format=json` (or the whole instance) to the harness at the
+  # reverse proxy — e.g. require an Authorization token / IP allowlist — since
+  # the harness calls SearXNG server-side anyway.
+  formats:
+    - html
+    - json
+
+  # Don't let a single Google CAPTCHA blackout the engine for ~15 days
+  # (upstream default cf_SearxEngineCaptcha is 1296000s).  Only these keys are
+  # overridden; the rest of suspended_times keep their defaults.
+  suspended_times:
+    SearxEngineCaptcha: 1800
+    cf_SearxEngineCaptcha: 3600
+    recaptcha_SearxEngineCaptcha: 3600
+
+# NOTE: urlscan.io is intentionally NOT a SearXNG engine here.
+# - Odin's Eye (~/Documents/syncpundit/odin) already has a production-grade
+#   urlscan IOC-verdict lookup: backend/services/ioc_providers/urlscan.py
+#   (exact-match IOC lookup, verdict extraction, credentialed, TTL-cached,
+#   registered + tested). Don't rebuild that here.
+# - The discovery/search use case (free-text query across urlscan's corpus
+#   for the hunting harness) lives in threat-hunter itself, not SearXNG:
+#   ~/Documents/syncpundit/threat-hunter/threat-intel/urlscan.py
+engines:
+  # Brave Search API — activate the stock stub; key from env.
+  # CAPTCHA-free independent SERP (free tier ~2k/mo).
+  # Confirmed live 2026-07-25: 18 results, honours `site:` dorks.
+  # `disabled: false` = queried on every general search. Flip to true to make
+  # it bang-only (`!braveapi`) if the 2k/mo free quota starts running short.
+  - name: braveapi
+    api_key: !env "BRAVE_API_KEY"
+    inactive: false
+    disabled: false
