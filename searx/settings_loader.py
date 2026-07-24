@@ -18,7 +18,9 @@ to be loaded. The rules used for this can be found in the
 """
 
 import typing as t
+import os
 import os.path
+import re
 from collections.abc import MutableMapping
 from itertools import filterfalse
 from pathlib import Path
@@ -29,6 +31,42 @@ from searx.exceptions import SearxSettingsException
 
 JSONType: t.TypeAlias = dict[str, "JSONType"] | list["JSONType"] | str | int | float | bool | None
 SettingsType: t.TypeAlias = dict[str, JSONType]
+
+
+class SXNGSettingsLoader(yaml.SafeLoader):
+    """YAML ``SafeLoader`` extended with an ``!env`` tag for environment-variable
+    substitution in settings files.  This lets secrets (API keys, ``secret_key``)
+    stay out of version control and be injected from the process environment.
+
+    Usage in a settings file::
+
+        server:
+          secret_key: !env "SEARXNG_SECRET"
+        engines:
+          - name: braveapi
+            api_key: !env "BRAVE_API_KEY"        # -> "" when unset
+          - name: urlscan
+            api_key: !env "URLSCAN_API_KEY:-"    # -> "" (explicit default)
+
+    Syntax: ``!env "VAR"`` or ``!env "VAR:-default"``.  When the variable is
+    unset and no default is given, an empty string is returned so the setting
+    stays inert instead of aborting the load.
+    """
+
+
+_ENV_TAG_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::-(.*))?\s*$", re.DOTALL)
+
+
+def _env_constructor(loader: yaml.Loader, node: yaml.Node) -> str:
+    raw = loader.construct_scalar(node)  # type: ignore[arg-type]
+    match = _ENV_TAG_RE.match(raw)
+    if not match:
+        raise yaml.constructor.ConstructorError(None, None, f"invalid !env expression: {raw!r}", node.start_mark)
+    name, default = match.group(1), match.group(2)
+    return os.environ.get(name, default if default is not None else "")
+
+
+SXNGSettingsLoader.add_constructor("!env", _env_constructor)
 
 searx_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -41,7 +79,16 @@ def load_yaml(file_name: str | Path) -> SettingsType:
     """Load YAML config from a file."""
     try:
         with open(file_name, 'r', encoding='utf-8') as settings_yaml:
-            return yaml.safe_load(settings_yaml) or {}
+            # SXNGSettingsLoader is a yaml.SafeLoader subclass that adds only the
+            # string-valued `!env` tag; it never constructs arbitrary Python
+            # objects (no `!!python/...`), so this is as safe as yaml.safe_load().
+            # Instantiate directly (rather than yaml.load) to keep the safe
+            # loader explicit and scoped to settings files only.
+            loader = SXNGSettingsLoader(settings_yaml)
+            try:
+                return loader.get_single_data() or {}
+            finally:
+                loader.dispose()
     except IOError as e:
         raise SearxSettingsException(e, str(file_name)) from e
     except yaml.YAMLError as e:
