@@ -88,6 +88,9 @@ server:
   # would route every result image through this instance (bandwidth + latency).
   image_proxy: false
 
+  # NOTE: this is only the DEFAULT — a saved preferences cookie overrides it.
+  # See `preferences.lock` below, which is what actually guarantees GET.
+  #
   # GET instead of the upstream default POST. Required by the nginx JSON gate:
   # nginx can't inspect a POST body, so `format=json` sent as form data would
   # bypass a query-arg check. With GET, every search carries format= in the
@@ -96,6 +99,22 @@ server:
   # Upstream considers GET acceptable ("may be better for end users and their
   # browsers"); revert to POST only if you also drop the nginx gate.
   method: "GET"
+
+# The ONLY locked preference, and only because the nginx JSON gate depends on
+# it. nginx cannot inspect a POST body, so `format=json` submitted as form data
+# would bypass the query-arg check; the gate answers that with `return 405` on
+# POST /search. That is only safe if nothing legitimate POSTs there.
+#
+# `server.method: "GET"` alone is just a default, and a saved preferences
+# cookie overrides it — a client carrying an older `method=POST` cookie was
+# locked out of searching entirely (405 on every query). Locking it forces GET
+# for every client regardless of cookie.
+#
+# Deliberately narrow: engine selection and everything else stay the client's
+# choice. Only unlock this if the nginx POST rule is dropped at the same time.
+preferences:
+  lock:
+    - method
 
 search:
   # JSON output for programmatic use by the harness.

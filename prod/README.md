@@ -82,7 +82,8 @@ Mechanics, for when this comes up again:
 - `inactive: true` — engine not loaded at all; a client **cannot** enable it.
   Don't use this here.
 - `preferences.lock` — forces a setting instance-wide and removes client
-  choice. Deliberately empty.
+  choice. Contains exactly one entry, `method`, and only because the nginx
+  JSON gate depends on it (see below). Nothing else is locked.
 
 Note some engines ship `disabled: true` from **upstream** (e.g. `bing`,
 `google`'s `inactive: true`). Those are upstream defaults, not ours, and
