@@ -58,11 +58,20 @@ to 10. Raise it only on a paid plan.
 
 ## Engine policy
 
-**No engine is deactivated server-side.** Engine selection belongs to the
-client: this config sets no `disabled: true`, no `inactive: true`, and nothing
-in `preferences.lock`. Known-degraded engines (brave scraper rate-limiting,
-startpage CAPTCHA-walled, bing serving stale entries) are deliberately left up
-so clients can decide for themselves whether they're worth keeping.
+**Never remove the client's ability to choose an engine.** No `inactive: true`
+and nothing in `preferences.lock`. Changing a *default* with `disabled: true`
+is fine where there's measured evidence, because a client can always switch
+the engine back on in preferences.
+
+Current state:
+
+- `bing` — `disabled: true`. It does not answer dorks at all: `site:` queries
+  are CAPTCHA-walled from any IP, and once a human solves that, the quoted
+  phrase is silently dropped (`site:webflow.io "MetaMask"` returned Lottie
+  animations and Minecraft texture packs). Plain queries from this IP are
+  degraded too.
+- `brave` (HTML scraper) and `startpage` — left **on** despite being broken
+  (~50% rate-limited, and 100% CAPTCHA respectively), so clients can judge.
 
 Mechanics, for when this comes up again:
 
