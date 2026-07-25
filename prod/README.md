@@ -8,7 +8,8 @@ stays clean.
 
 | Change | Where | Type |
 |---|---|---|
-| `!env` YAML tag for env-injected secrets | `searx/settings_loader.py` | patched upstream file (1) |
+| `!env` YAML tag for env-injected secrets | `searx/settings_loader.py` | patched upstream file |
+| Brave API paging fix (offset is a page index) | `searx/engines/braveapi.py` | patched upstream file (bug fix) |
 | JSON output (`formats: [html, json]`) | `prod/settings.yml` | override |
 | `method: "GET"` (pairs with the nginx gate) | `prod/settings.yml` | override |
 | Shorter Google CAPTCHA suspension | `prod/settings.yml` | override |
@@ -16,8 +17,15 @@ stays clean.
 | Own container image | `prod/docker-compose.yml` | deployment |
 | Proxy headers + JSON API gate | `prod/nginx/` | deployment |
 
-Only **one** upstream file is touched (`settings_loader.py`), quarantined to a
-single commit so merge conflicts stay minimal.
+Two upstream files are touched, each quarantined to its own commit so merge
+conflicts stay minimal:
+
+- `settings_loader.py` — the `!env` tag (a feature this fork adds).
+- `braveapi.py` — a genuine upstream bug: Brave's `offset` parameter is a
+  zero-based *page* index (valid 0–9), but the engine sent
+  `(pageno-1) * results_per_page`, i.e. `offset=20` for page 2. Brave rejects
+  that with HTTP 422, so the engine could only ever return page 1. Worth
+  submitting upstream; drop this patch if/when it lands there.
 
 **Not here:** urlscan.io. IOC-verdict lookups are already handled by Odin's
 Eye (`~/Documents/syncpundit/odin/backend/services/ioc_providers/urlscan.py`);
