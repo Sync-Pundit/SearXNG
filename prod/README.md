@@ -17,15 +17,26 @@ stays clean.
 | Own container image | `prod/docker-compose.yml` | deployment |
 | Proxy headers + JSON API gate | `prod/nginx/` | deployment |
 
-Two upstream files are touched, each quarantined to its own commit so merge
-conflicts stay minimal:
+Three upstream files are touched, each quarantined to its own commit so merge
+conflicts stay minimal. The latter two are upstream bugs — worth submitting,
+and droppable if/when they land upstream:
 
 - `settings_loader.py` — the `!env` tag (a feature this fork adds).
-- `braveapi.py` — a genuine upstream bug: Brave's `offset` parameter is a
-  zero-based *page* index (valid 0–9), but the engine sent
-  `(pageno-1) * results_per_page`, i.e. `offset=20` for page 2. Brave rejects
-  that with HTTP 422, so the engine could only ever return page 1. Worth
-  submitting upstream; drop this patch if/when it lands there.
+- `braveapi.py` — Brave's `offset` parameter is a zero-based *page* index
+  (valid 0–9), but the engine sent `(pageno-1) * results_per_page`, i.e.
+  `offset=20` for page 2. Brave rejects that with HTTP 422, so the engine
+  could only ever return page 1.
+- `duckduckgo.py` — a `web-result` div lacking `<h2><a href>` raised
+  IndexError out of `response()`, discarding *every* result on the page
+  rather than the one malformed entry. Accounted for 30% of DDG's errors.
+
+## Engine notes
+
+`disabled: true` only sets the **default**; a saved preferences cookie
+overrides it per-browser (`disabled_engines`/`enabled_engines`). After
+changing engine defaults, clear the instance's cookie or re-save preferences,
+otherwise existing sessions keep querying the old set. To enforce centrally,
+add the setting to `preferences.lock` instead.
 
 **Not here:** urlscan.io. IOC-verdict lookups are already handled by Odin's
 Eye (`~/Documents/syncpundit/odin/backend/services/ioc_providers/urlscan.py`);
