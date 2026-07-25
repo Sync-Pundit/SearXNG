@@ -117,6 +117,21 @@ search:
     cf_SearxEngineCaptcha: 3600
     recaptcha_SearxEngineCaptcha: 3600
 
+# POLICY: no engine is deactivated server-side. Engine selection is the
+# client's call — they enable/disable whatever they want in preferences, and
+# nothing here (no `disabled: true`, no `inactive: true`, no
+# `preferences.lock`) takes that decision away from them.
+#
+# Known-degraded engines as of 2026-07-25, left ON deliberately so clients can
+# judge for themselves:
+#   brave      ~50% SearxEngineTooManyRequestsException — the HTML scraper and
+#              braveapi both hit Brave from this IP on every search
+#   startpage  100% failure: get_sc_code redirected to /sp/captcha
+#              (datacenter-IP block; would need a residential proxy)
+#   bing       reported as returning stale/cached entries. NOTE: upstream
+#              itself ships bing with `disabled: true` — that default is not
+#              ours, and clients can still enable it in preferences.
+#
 # NOTE: urlscan.io is intentionally NOT a SearXNG engine here.
 # - Odin's Eye (~/Documents/syncpundit/odin) already has a production-grade
 #   urlscan IOC-verdict lookup: backend/services/ioc_providers/urlscan.py
@@ -135,19 +150,3 @@ engines:
     api_key: !env "BRAVE_API_KEY"
     inactive: false
     disabled: false
-
-  # Brave HTML scraper — OFF. Redundant now that braveapi is live: both hit
-  # Brave from the same IP on every search, and the scraper was earning
-  # SearxEngineTooManyRequestsException on ~50% of requests as a result.
-  # braveapi returns the same index officially, with a key. Still reachable
-  # via the `!br` bang if ever needed.
-  - name: brave
-    disabled: true
-
-  # Startpage — OFF. 100% failure rate: get_sc_code is redirected to
-  # startpage.com/sp/captcha on every request (suspended_time=1800), which is
-  # the standard datacenter-IP block. Nothing configurable fixes this; it
-  # would need a residential proxy. Leaving it enabled only spends request
-  # time to guarantee an error.
-  - name: startpage
-    disabled: true

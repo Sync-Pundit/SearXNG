@@ -56,13 +56,28 @@ to 10. Raise it only on a paid plan.
 **Note `google` is currently `inactive: true`** (upstream default, inherited via
 `use_default_settings`), so in practice only `google cse` gates the fallback.
 
-## Engine notes
+## Engine policy
 
-`disabled: true` only sets the **default**; a saved preferences cookie
-overrides it per-browser (`disabled_engines`/`enabled_engines`). After
-changing engine defaults, clear the instance's cookie or re-save preferences,
-otherwise existing sessions keep querying the old set. To enforce centrally,
-add the setting to `preferences.lock` instead.
+**No engine is deactivated server-side.** Engine selection belongs to the
+client: this config sets no `disabled: true`, no `inactive: true`, and nothing
+in `preferences.lock`. Known-degraded engines (brave scraper rate-limiting,
+startpage CAPTCHA-walled, bing serving stale entries) are deliberately left up
+so clients can decide for themselves whether they're worth keeping.
+
+Mechanics, for when this comes up again:
+
+- `disabled: true` — engine off *by default*; a client can still switch it on.
+  A saved preferences cookie (`disabled_engines`/`enabled_engines`) overrides
+  the default per-browser, so a config change won't affect existing sessions
+  until the cookie is cleared or preferences re-saved.
+- `inactive: true` — engine not loaded at all; a client **cannot** enable it.
+  Don't use this here.
+- `preferences.lock` — forces a setting instance-wide and removes client
+  choice. Deliberately empty.
+
+Note some engines ship `disabled: true` from **upstream** (e.g. `bing`,
+`google`'s `inactive: true`). Those are upstream defaults, not ours, and
+clients can still enable the `disabled` ones in preferences.
 
 **Not here:** urlscan.io. IOC-verdict lookups are already handled by Odin's
 Eye (`~/Documents/syncpundit/odin/backend/services/ioc_providers/urlscan.py`);
