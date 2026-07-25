@@ -168,6 +168,19 @@ engines:
     inactive: false
     disabled: false
 
+  # Yahoo — HTTP/2 disabled for this engine only.
+  # Yahoo's search hosts break HTTP/2: httpx raises RemoteProtocolError
+  # ("Server disconnected") mid-response, which was 100% of yahoo's requests.
+  # Reproduced directly against search.yahoo.com — it fails on HTTP/2 and
+  # succeeds on HTTP/1.1, while bing/duckduckgo/brave/startpage are all fine
+  # on HTTP/2, so this is Yahoo's bug and not an instance-wide problem.
+  # Engine settings become module attributes, and searx/network/network.py
+  # reads `enable_http2` off the engine when building its network, so this
+  # scopes the workaround to yahoo instead of degrading every engine.
+  # (Upstream does the same thing for the image_proxy network.)
+  - name: yahoo
+    enable_http2: false
+
   # Bing — OFF BY DEFAULT, client can re-enable in preferences.
   # Upstream already ships bing with `disabled: true`; pinned explicitly here
   # so the default cannot drift if upstream ever flips it. See the measured
