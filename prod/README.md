@@ -15,7 +15,7 @@ stays clean.
 | Shorter Google CAPTCHA suspension | `prod/settings.yml` | override |
 | Brave Search API engine (activated) | `prod/settings.yml` | override (stock engine) |
 | Own container image | `prod/docker-compose.yml` | deployment |
-| Proxy headers + JSON API gate | `prod/nginx/` | deployment |
+| Proxy headers + JSON API gate | `prod/nginx/sites-enabled-default.conf` | deployment (full `sites-enabled/default` replacement) |
 
 Three upstream files are touched, each quarantined to its own commit so merge
 conflicts stay minimal. The latter two are upstream bugs — worth submitting,
@@ -136,30 +136,43 @@ which is confusingly close to the upstream image — set it.
    The container listens on **8080** and is published to **127.0.0.1 only**, so
    nginx is the sole way in.
 
-3. nginx. The JSON gate's token lives in an **uncommitted** file that the
-   site config `include`s, so the secret is never in git and a missing token
-   makes nginx refuse to start rather than silently serving the API:
+3. nginx. This host keeps **every vhost in one file**,
+   `/etc/nginx/sites-enabled/default`, so `prod/nginx/sites-enabled-default.conf`
+   is a complete replacement for it, not a drop-in. Copy it over, then make the
+   single edit it asks for:
 
    ```bash
-   TOKEN=$(openssl rand -hex 32)
-   printf 'map $http_authorization $th_authed {\n    default 0;\n    "Bearer %s" 1;\n}\n' "$TOKEN" \
-     | sudo tee /etc/nginx/searx-token.map >/dev/null
-   sudo chmod 640 /etc/nginx/searx-token.map
-   echo "$TOKEN"   # save this - it is not recoverable from anywhere else
+   sudo cp prod/nginx/sites-enabled-default.conf /etc/nginx/sites-enabled/default
+   ```
+
+   Uncomment the one token line in the `$th_authed` map and paste a token:
+
+   ```bash
+   openssl rand -hex 32
    ```
 
    ```bash
-   sudo cp prod/nginx/searx.syncpundit.io.conf /etc/nginx/conf.d/
    sudo nginx -t && sudo systemctl reload nginx
    ```
 
-   Rotation is the same two commands: rewrite `searx-token.map`, reload.
+   Rotation = edit that line, reload. The token lives only in the deployed
+   file, which is not in git.
 
-   > **Never put the token in the committed config.** A placeholder in a
-   > tracked file becomes a live credential the moment it is deployed
-   > unmodified, and it is readable by anyone with repo access. This happened
-   > once (2026-07-25): `REPLACE_ME_WITH_A_32_BYTE_HEX_TOKEN` shipped to prod
-   > verbatim and granted full JSON API access until it was rotated.
+   > **Never commit the token, and never ship a working placeholder.** A
+   > placeholder in a tracked file becomes a live credential the moment it
+   > deploys unmodified, readable by anyone with repo access. That happened
+   > (2026-07-25): `REPLACE_ME_WITH_A_32_BYTE_HEX_TOKEN` reached prod verbatim
+   > and granted full JSON API access until rotated. The committed map now
+   > ships with the token line **commented out**, so an unmodified deploy
+   > authenticates nobody — JSON closed, which is the safe direction.
+
+   Two nginx behaviours worth knowing, both verified against `nginx:alpine`:
+
+   - **Duplicate `map`s do not error.** Two maps defining `$th_authed`
+     silently resolve to the **last** one. A stale map further down the file
+     will quietly override this gate with no warning.
+   - **`map` matches string keys case-insensitively**, so a lowercase hex
+     token matches a mixed-case key. Case is never the cause of a 403 here.
 
 ### Local dev (no container)
 
