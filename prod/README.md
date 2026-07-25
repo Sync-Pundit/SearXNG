@@ -136,13 +136,30 @@ which is confusingly close to the upstream image — set it.
    The container listens on **8080** and is published to **127.0.0.1 only**, so
    nginx is the sole way in.
 
-3. nginx:
+3. nginx. The JSON gate's token lives in an **uncommitted** file that the
+   site config `include`s, so the secret is never in git and a missing token
+   makes nginx refuse to start rather than silently serving the API:
+
+   ```bash
+   TOKEN=$(openssl rand -hex 32)
+   printf 'map $http_authorization $th_authed {\n    default 0;\n    "Bearer %s" 1;\n}\n' "$TOKEN" \
+     | sudo tee /etc/nginx/searx-token.map >/dev/null
+   sudo chmod 640 /etc/nginx/searx-token.map
+   echo "$TOKEN"   # save this - it is not recoverable from anywhere else
+   ```
 
    ```bash
    sudo cp prod/nginx/searx.syncpundit.io.conf /etc/nginx/conf.d/
-   # edit it: replace the bearer token placeholder with `openssl rand -hex 32`
    sudo nginx -t && sudo systemctl reload nginx
    ```
+
+   Rotation is the same two commands: rewrite `searx-token.map`, reload.
+
+   > **Never put the token in the committed config.** A placeholder in a
+   > tracked file becomes a live credential the moment it is deployed
+   > unmodified, and it is readable by anyone with repo access. This happened
+   > once (2026-07-25): `REPLACE_ME_WITH_A_32_BYTE_HEX_TOKEN` shipped to prod
+   > verbatim and granted full JSON API access until it was rotated.
 
 ### Local dev (no container)
 
