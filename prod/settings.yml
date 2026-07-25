@@ -8,6 +8,46 @@
 
 use_default_settings: true
 
+# WARNING: unlike `engines`, the settings loader REPLACES this whole block
+# rather than merging it (settings_loader.py: `default_settings['plugins'] =
+# plugins`). Every plugin that should stay on must be listed here, so this
+# mirrors the upstream defaults verbatim and appends ours at the end. Re-sync
+# with upstream's `plugins:` block after a merge.
+plugins:
+  searx.plugins.calculator.SXNGPlugin:
+    active: true
+  searx.plugins.infinite_scroll.SXNGPlugin:
+    active: false
+  searx.plugins.hash_plugin.SXNGPlugin:
+    active: true
+  searx.plugins.self_info.SXNGPlugin:
+    active: true
+  searx.plugins.unit_converter.SXNGPlugin:
+    active: true
+  searx.plugins.ahmia_filter.SXNGPlugin:
+    active: true
+  searx.plugins.hostnames.SXNGPlugin:
+    active: true
+  searx.plugins.time_zone.SXNGPlugin:
+    active: true
+  searx.plugins.oa_doi_rewrite.SXNGPlugin:
+    active: false
+  searx.plugins.tor_check.SXNGPlugin:
+    active: false
+  searx.plugins.tracker_url_remover.SXNGPlugin:
+    active: true
+
+  # --- fork addition ---
+  # Calls the Serper API ONLY when every primary Google engine that actually
+  # ran came back with zero results. SearXNG has no native conditional-engine
+  # mechanism (all engines fire in parallel), so this lives in a post_search
+  # hook. Serper bills 1 credit per request, so on a normal search where Google
+  # CSE answers, this costs nothing. Configured by env: SERPER_API_KEY
+  # (required — without it the plugin deactivates itself at startup),
+  # SERPER_PRIMARY_ENGINES, SERPER_MAX_PAGE.
+  searx.plugins.serper_fallback.SXNGPlugin:
+    active: true
+
 # Instance branding. These belong here, NOT in searx/settings.yml — editing the
 # upstream defaults file means a merge conflict on every `git merge upstream`.
 general:

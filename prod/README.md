@@ -30,6 +30,32 @@ and droppable if/when they land upstream:
   IndexError out of `response()`, discarding *every* result on the page
   rather than the one malformed entry. Accounted for 30% of DDG's errors.
 
+## Serper fallback
+
+`searx/plugins/serper_fallback.py` (new file, not a patch) calls the Serper API
+**only** when every primary Google engine that actually ran returned zero
+results. SearXNG fires all engines in parallel and has no conditional-engine
+mechanism, so this lives in a `post_search` hook — the one place that can see
+the finished result set and still contribute results.
+
+Env config (already loaded from `prod/.env`):
+
+| Variable | Default | Notes |
+|---|---|---|
+| `SERPER_API_KEY` | — | Required; without it the plugin deactivates at startup |
+| `SERPER_PRIMARY_ENGINES` | `google,google cse` | Only engines that *actually ran* can gate |
+| `SERPER_MAX_PAGE` | `5` | Stops deep pagination burning a credit per page |
+
+Costs 1 credit per fired request, 0 when a primary engine answers.
+
+**Free-tier limit:** Serper rejects advanced query patterns (`site:`, quoted
+phrases) when `num > 10` — HTTP 400 *"Query pattern not allowed for free
+accounts"*. Since every harness query is a dork, `RESULTS_PER_PAGE` is pinned
+to 10. Raise it only on a paid plan.
+
+**Note `google` is currently `inactive: true`** (upstream default, inherited via
+`use_default_settings`), so in practice only `google cse` gates the fallback.
+
 ## Engine notes
 
 `disabled: true` only sets the **default**; a saved preferences cookie
