@@ -117,10 +117,11 @@ search:
     cf_SearxEngineCaptcha: 3600
     recaptcha_SearxEngineCaptcha: 3600
 
-# POLICY: no engine is deactivated server-side. Engine selection is the
-# client's call — they enable/disable whatever they want in preferences, and
-# nothing here (no `disabled: true`, no `inactive: true`, no
-# `preferences.lock`) takes that decision away from them.
+# POLICY: never REMOVE the client's ability to choose an engine. No
+# `inactive: true` (engine not loaded, client cannot enable it) and nothing in
+# `preferences.lock` (forced instance-wide). `disabled: true` is allowed where
+# there is measured evidence: it only changes the DEFAULT, and any client can
+# still switch the engine back on in preferences.
 #
 # Known-degraded engines as of 2026-07-25, left ON deliberately so clients can
 # judge for themselves:
@@ -166,3 +167,11 @@ engines:
     api_key: !env "BRAVE_API_KEY"
     inactive: false
     disabled: false
+
+  # Bing — OFF BY DEFAULT, client can re-enable in preferences.
+  # Upstream already ships bing with `disabled: true`; pinned explicitly here
+  # so the default cannot drift if upstream ever flips it. See the measured
+  # findings above: it does not answer dorks at all, and returns degraded
+  # results for plain queries from this IP. Deliberately NOT `inactive`.
+  - name: bing
+    disabled: true
