@@ -128,9 +128,25 @@ search:
 #              braveapi both hit Brave from this IP on every search
 #   startpage  100% failure: get_sc_code redirected to /sp/captcha
 #              (datacenter-IP block; would need a residential proxy)
-#   bing       reported as returning stale/cached entries. NOTE: upstream
-#              itself ships bing with `disabled: true` — that default is not
-#              ours, and clients can still enable it in preferences.
+#   bing       two separate problems, measured 2026-07-25:
+#              (a) from this datacenter IP it returns irrelevant results for
+#                  plain queries — degraded rather than blocked, so it looks
+#                  like it worked. A residential IP returns good results for
+#                  the same query, so this part is IP reputation.
+#              (b) `site:` dorks are CAPTCHA-walled REGARDLESS of IP —
+#                  reproduced from a residential IP and a VPN as well as from
+#                  the server. No proxy fixes this; it is Bing policy on the
+#                  query shape.
+#              (c) worse: even after a human solves that CAPTCHA, Bing applies
+#                  `site:` but silently DROPS the quoted phrase.
+#                  `site:webflow.io "MetaMask"` returned Lottie animations, a
+#                  UI component library and Minecraft texture packs - zero
+#                  MetaMask mentions. So Bing is not answering dorks at all;
+#                  it only looks like it is.
+#              Bing is therefore unusable for dork-based hunting, which is
+#              most of what this instance is for.
+#              NOTE: upstream itself ships bing with `disabled: true` — that
+#              default is not ours, and clients can still enable it.
 #
 # NOTE: urlscan.io is intentionally NOT a SearXNG engine here.
 # - Odin's Eye (~/Documents/syncpundit/odin) already has a production-grade
