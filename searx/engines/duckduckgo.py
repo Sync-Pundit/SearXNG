@@ -492,12 +492,19 @@ def response(resp: "SXNG_Response") -> EngineResults:
 
     # just select "web-result" and ignore results of class "result--ad result--ad--small"
     for div_result in eval_xpath(doc, '//div[@id="links"]/div[contains(@class, "web-result")]'):
+        # A "web-result" div without an <h2><a href> does occur in practice.
+        # Indexing [0] unconditionally raised IndexError out of response(),
+        # which discarded every result on the page - not just this one. Skip
+        # the malformed entry instead.
+        _url = eval_xpath_getindex(div_result, ".//h2/a/@href", 0, None)
+        if not _url:
+            continue
         _title = eval_xpath(div_result, ".//h2/a")
         _content = eval_xpath_getindex(div_result, './/a[contains(@class, "result__snippet")]', 0, [])
         res.add(
             res.types.MainResult(
                 title=extract_text(_title) or "",
-                url=eval_xpath(div_result, ".//h2/a/@href")[0],
+                url=_url,
                 content=extract_text(_content) or "",
             )
         )
