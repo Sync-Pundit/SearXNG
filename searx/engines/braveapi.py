@@ -57,6 +57,10 @@ time_range_support = True
 results_per_page: int = 20
 """Maximum number of results per page (default 20)."""
 
+max_page = 10
+"""Brave's ``offset`` is a zero-based *page* index accepted only in the range
+0..9, so page 10 is the last reachable page."""
+
 base_url = "https://api.search.brave.com/res/v1/web/search"
 """Base URL for the Brave Search API."""
 
@@ -75,7 +79,11 @@ def request(query: str, params: "OnlineParams") -> None:
     search_args: dict[str, str | int | None] = {
         "q": query,
         "count": results_per_page,
-        "offset": (params["pageno"] - 1) * results_per_page,
+        # Brave's `offset` is a zero-based PAGE index (max 9), not a result
+        # offset. Multiplying by results_per_page sends offset=20 for page 2,
+        # which the API rejects with HTTP 422 "Unable to validate request
+        # parameter(s)" — so paging was broken beyond page 1.
+        "offset": params["pageno"] - 1,
         "text_decorations": False,
     }
 
