@@ -27,6 +27,14 @@ server:
   # Rotate the secret out of the tracked defaults; supply via env.
   secret_key: !env "SEARXNG_SECRET"
 
+  # Public URL of the instance. REQUIRED behind a reverse proxy: searx/flaskfix.py
+  # builds absolute URLs from `base_url` first, then X-Forwarded-Host, then the
+  # raw Host header. With this unset, nginx's upstream address leaks into the UI
+  # ("Search URL" showed https://127.0.0.1:8080/... and saving preferences
+  # redirected to localhost). Setting it here wins over every header, so URL
+  # generation no longer depends on proxy config being exactly right.
+  base_url: "https://searx.syncpundit.io/"
+
   # MUST stay false. Upstream's searx/settings.yml defaults this to TRUE, and
   # `use_default_settings: true` inherits it — but the old standalone prod
   # settings.yml had it false, so leaving it unset silently flips behaviour.
