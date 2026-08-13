@@ -29,6 +29,19 @@ class ResultContainerTestCase(SearxTestCase):
         res.normalize_result_fields()
         self.assertIn(res, container.get_ordered_results())
 
+    def test_plugin_result_does_not_require_engine_metrics(self):
+        container = ResultContainer()
+        container.extend(
+            "plugin: fallback",
+            [dict(url="https://example.org", title="title", content="content")],
+        )
+
+        container.close()
+
+        results = container.get_ordered_results()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].engines, {"plugin: fallback"})
+
     def test_one_suggestion(self):
         result = dict(suggestion="lorem ipsum ..")
 

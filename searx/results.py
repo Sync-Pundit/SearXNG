@@ -186,7 +186,10 @@ class ResultContainer:
         for result in self.main_results_map.values():
             result.score = calculate_score(result, result.priority)
             for eng_name in result.engines:
-                counter_add(result.score, 'engine', eng_name, 'score')
+                # Plugin and answerer results use synthetic provenance names
+                # that do not have engine metrics configured.
+                if eng_name in searx.engines.engines:
+                    counter_add(result.score, 'engine', eng_name, 'score')
 
     def get_ordered_results(self) -> list[MainResult | LegacyResult]:
         """Returns a sorted list of results to be displayed in the main result

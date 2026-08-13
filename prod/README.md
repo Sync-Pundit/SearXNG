@@ -17,8 +17,8 @@ stays clean.
 | Own container image | `prod/docker-compose.yml` | deployment |
 | Proxy headers + JSON API gate | `prod/nginx/sites-enabled-default.conf` | deployment (full `sites-enabled/default` replacement) |
 
-Three upstream files are touched, each quarantined to its own commit so merge
-conflicts stay minimal. The latter two are upstream bugs — worth submitting,
+Four upstream files are touched, each quarantined to its own commit so merge
+conflicts stay minimal. The latter three are upstream bugs — worth submitting,
 and droppable if/when they land upstream:
 
 - `settings_loader.py` — the `!env` tag (a feature this fork adds).
@@ -29,6 +29,9 @@ and droppable if/when they land upstream:
 - `duckduckgo.py` — a `web-result` div lacking `<h2><a href>` raised
   IndexError out of `response()`, discarding *every* result on the page
   rather than the one malformed entry. Accounted for 30% of DDG's errors.
+- `results.py` — plugin-generated results carry synthetic provenance such as
+  `plugin: serper_fallback`, which has no engine metrics entry. Scoring used to
+  index that name unconditionally and turn a valid fallback into HTTP 500.
 
 ## Serper fallback
 
