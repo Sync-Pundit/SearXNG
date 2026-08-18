@@ -119,7 +119,7 @@ preferences:
 search:
   # JSON output for programmatic use by the harness.
   #
-  # SECURITY: this instance is internet-reachable (search.syncpundit.io) and
+  # SECURITY: this instance is internet-reachable (searx.syncpundit.io) and
   # runs with `limiter: false`.  Enabling JSON turns it into an open JSON search
   # API.  Gate `format=json` (or the whole instance) to the harness at the
   # reverse proxy — e.g. require an Authorization token / IP allowlist — since
