@@ -3,8 +3,8 @@
 # Loaded via SEARXNG_SETTINGS_PATH (see prod/README.md).  Only DELTAS live
 # here — `use_default_settings: true` merges these over upstream's
 # searx/settings.yml, so upstream defaults keep flowing through on
-# `git merge upstream/master`.  Secrets come from the environment via the `!env`
-# tag (see searx/settings_loader.py); never hard-code keys in this file.
+# `git merge upstream/master`. Secrets come from the environment via the
+# environment tags in searx/settings_loader.py; never hard-code keys here.
 
 use_default_settings: true
 
@@ -142,8 +142,8 @@ search:
 # there is measured evidence: it only changes the DEFAULT, and any client can
 # still switch the engine back on in preferences.
 #
-# Known-degraded engines as of 2026-07-25, left ON deliberately so clients can
-# judge for themselves:
+# Known-degraded engines as of 2026-08-25 are off by default. Clients can still
+# enable them explicitly in preferences:
 #   brave      ~50% SearxEngineTooManyRequestsException — the HTML scraper and
 #              braveapi both hit Brave from this IP on every search
 #   startpage  100% failure: get_sc_code redirected to /sp/captcha
@@ -177,14 +177,28 @@ search:
 #   for the hunting harness) lives in threat-hunter itself, not SearXNG:
 #   ~/Documents/syncpundit/threat-hunter/threat-intel/urlscan.py
 engines:
-  # Brave Search API — activate the stock stub; key from env.
+  # Onion engines cannot load without a Tor proxy. This deployment deliberately
+  # has no Tor route, so exclude them instead of emitting startup errors.
+  - name: ahmia
+    inactive: true
+
+  - name: torch
+    inactive: true
+
+  # This deployment does not consume Wikidata infoboxes. Its eager startup
+  # request is rejected from the current egress address, so keep it out of the
+  # runtime engine registry.
+  - name: wikidata
+    inactive: true
+
+  # Brave Search API: activate the stock stub only when its key is set.
   # CAPTCHA-free independent SERP (free tier ~2k/mo).
   # Confirmed live 2026-07-25: 18 results, honours `site:` dorks.
   # `disabled: false` = queried on every general search. Flip to true to make
   # it bang-only (`!braveapi`) if the 2k/mo free quota starts running short.
   - name: braveapi
     api_key: !env "BRAVE_API_KEY"
-    inactive: false
+    inactive: !env_not_set "BRAVE_API_KEY"
     disabled: false
 
   # Yahoo — HTTP/2 disabled for this engine only.
@@ -199,6 +213,16 @@ engines:
   # (Upstream does the same thing for the image_proxy network.)
   - name: yahoo
     enable_http2: false
+
+  # Both engines fail predictably from the Compose egress address. Keeping
+  # them in the default query set adds latency and reports a degraded search
+  # even when DuckDuckGo and Google CSE return complete results. They remain
+  # loaded and available as explicit preference or bang selections.
+  - name: brave
+    disabled: true
+
+  - name: startpage
+    disabled: true
 
   # Bing — OFF BY DEFAULT, client can re-enable in preferences.
   # Upstream already ships bing with `disabled: true`; pinned explicitly here

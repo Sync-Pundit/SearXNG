@@ -8,12 +8,13 @@ stays clean.
 
 | Change | Where | Type |
 |---|---|---|
-| `!env` YAML tag for env-injected secrets | `searx/settings_loader.py` | patched upstream file |
+| Environment YAML tags for secrets and credential-gated engines | `searx/settings_loader.py` | patched upstream file |
 | Brave API paging fix (offset is a page index) | `searx/engines/braveapi.py` | patched upstream file (bug fix) |
 | JSON output (`formats: [html, json]`) | `prod/settings.yml` | override |
 | `method: "GET"` (pairs with the nginx gate) | `prod/settings.yml` | override |
 | Shorter Google CAPTCHA suspension | `prod/settings.yml` | override |
-| Brave Search API engine (activated) | `prod/settings.yml` | override (stock engine) |
+| Brave Search API engine (activated when configured) | `prod/settings.yml` | override (stock engine) |
+| Predictable engine and bot-detection defaults | `prod/settings.yml`, `prod/limiter.toml` | override |
 | Own container image | `prod/docker-compose.yml` | deployment |
 | Proxy headers + JSON API gate | `prod/nginx/sites-enabled-default.conf` | deployment (full `sites-enabled/default` replacement) |
 
@@ -21,7 +22,7 @@ Four upstream files are touched, each quarantined to its own commit so merge
 conflicts stay minimal. The latter three are upstream bugs — worth submitting,
 and droppable if/when they land upstream:
 
-- `settings_loader.py` — the `!env` tag (a feature this fork adds).
+- `settings_loader.py`: the `!env` and `!env_not_set` tags (features this fork adds).
 - `braveapi.py` — Brave's `offset` parameter is a zero-based *page* index
   (valid 0–9), but the engine sent `(pageno-1) * results_per_page`, i.e.
   `offset=20` for page 2. Brave rejects that with HTTP 422, so the engine
@@ -73,8 +74,9 @@ Current state:
   phrase is silently dropped (`site:webflow.io "MetaMask"` returned Lottie
   animations and Minecraft texture packs). Plain queries from this IP are
   degraded too.
-- `brave` (HTML scraper) and `startpage` — left **on** despite being broken
-  (~50% rate-limited, and 100% CAPTCHA respectively), so clients can judge.
+- `brave` (HTML scraper) and `startpage`: `disabled: true`. Live Compose
+  checks reproduced rate limiting and a CAPTCHA on every acceptance pass.
+  Both remain loaded, so clients can enable them explicitly.
 
 Mechanics, for when this comes up again:
 

@@ -17,10 +17,10 @@ to be loaded. The rules used for this can be found in the
 
 """
 
-import typing as t
 import os
 import os.path
 import re
+import typing as t
 from collections.abc import MutableMapping
 from itertools import filterfalse
 from pathlib import Path
@@ -34,9 +34,9 @@ SettingsType: t.TypeAlias = dict[str, JSONType]
 
 
 class SXNGSettingsLoader(yaml.SafeLoader):
-    """YAML ``SafeLoader`` extended with an ``!env`` tag for environment-variable
-    substitution in settings files.  This lets secrets (API keys, ``secret_key``)
-    stay out of version control and be injected from the process environment.
+    """YAML ``SafeLoader`` extended with environment-variable tags for settings
+    files.  This lets secrets (API keys, ``secret_key``) stay out of version
+    control and be injected from the process environment.
 
     Usage in a settings file::
 
@@ -47,10 +47,12 @@ class SXNGSettingsLoader(yaml.SafeLoader):
             api_key: !env "BRAVE_API_KEY"        # -> "" when unset
           - name: urlscan
             api_key: !env "URLSCAN_API_KEY:-"    # -> "" (explicit default)
+            inactive: !env_not_set "URLSCAN_API_KEY"
 
     Syntax: ``!env "VAR"`` or ``!env "VAR:-default"``.  When the variable is
-    unset and no default is given, an empty string is returned so the setting
-    stays inert instead of aborting the load.
+    unset and no default is given, an empty string is returned. The
+    ``!env_not_set`` tag returns a boolean so engines that require credentials
+    can remain inactive until their key is configured.
     """
 
 
@@ -66,7 +68,16 @@ def _env_constructor(loader: yaml.Loader, node: yaml.Node) -> str:
     return os.environ.get(name, default if default is not None else "")
 
 
+def _env_not_set_constructor(loader: yaml.Loader, node: yaml.Node) -> bool:
+    raw = loader.construct_scalar(node)  # type: ignore[arg-type]
+    match = _ENV_TAG_RE.match(raw)
+    if not match or match.group(2) is not None:
+        raise yaml.constructor.ConstructorError(None, None, f"invalid !env_not_set expression: {raw!r}", node.start_mark)
+    return not os.environ.get(match.group(1), "")
+
+
 SXNGSettingsLoader.add_constructor("!env", _env_constructor)
+SXNGSettingsLoader.add_constructor("!env_not_set", _env_not_set_constructor)
 
 searx_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -79,9 +90,9 @@ def load_yaml(file_name: str | Path) -> SettingsType:
     """Load YAML config from a file."""
     try:
         with open(file_name, 'r', encoding='utf-8') as settings_yaml:
-            # SXNGSettingsLoader is a yaml.SafeLoader subclass that adds only the
-            # string-valued `!env` tag; it never constructs arbitrary Python
-            # objects (no `!!python/...`), so this is as safe as yaml.safe_load().
+            # SXNGSettingsLoader is a yaml.SafeLoader subclass that adds only
+            # environment-value tags; it never constructs arbitrary Python objects
+            # (no `!!python/...`), so this is as safe as yaml.safe_load().
             # Instantiate directly (rather than yaml.load) to keep the safe
             # loader explicit and scoped to settings files only.
             loader = SXNGSettingsLoader(settings_yaml)

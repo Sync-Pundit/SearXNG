@@ -1,0 +1,3 @@
+# SearXNG initializes bot-detection configuration even when request limiting is
+# disabled. An existing, empty override selects the upstream schema defaults and
+# avoids a misleading missing-configuration warning.

@@ -1,20 +1,28 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # pylint: disable=missing-module-docstring,disable=missing-class-docstring,invalid-name
 
-from pathlib import Path
-
+import io
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 from parameterized import parameterized
-
-from searx.exceptions import SearxSettingsException
 from searx import settings_loader
+from searx.exceptions import SearxSettingsException
+
 from tests import SearxTestCase
 
 
 def _settings(f_name):
     return str(Path(__file__).parent.absolute() / "settings" / f_name)
+
+
+def _load_source(source):
+    loader = settings_loader.SXNGSettingsLoader(io.StringIO(source))
+    try:
+        return loader.get_single_data()
+    finally:
+        loader.dispose()
 
 
 class TestLoad(SearxTestCase):
@@ -27,6 +35,21 @@ class TestLoad(SearxTestCase):
             settings_loader.load_yaml(_settings("syntaxerror_settings.yml"))
 
         self.assertEqual(settings_loader.load_yaml(_settings("empty_settings.yml")), {})
+
+    def test_environment_tags(self):
+        source = "api_key: !env TEST_API_KEY\ninactive: !env_not_set TEST_API_KEY\n"
+
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(
+                _load_source(source),
+                {"api_key": "", "inactive": True},
+            )
+
+        with patch.dict(os.environ, {"TEST_API_KEY": "secret"}, clear=True):
+            self.assertEqual(
+                _load_source(source),
+                {"api_key": "secret", "inactive": False},
+            )
 
 
 class TestDefaultSettings(SearxTestCase):
