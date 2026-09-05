@@ -7,10 +7,9 @@ other's results at request time, so a conditional fallback has to live in a
 plugin's :py:obj:`post_search` hook, which runs after the search and may return
 extra results.
 
-This plugin calls the Serper API **only** when every primary engine that was
+This plugin calls the Serper API only when every primary engine that was
 actually queried returned zero results. Serper bills one credit per request, so
-the intent is that it costs nothing on the overwhelming majority of searches and
-only pays out when Google would otherwise have left the user with nothing.
+the plugin spends nothing when a primary engine answers.
 
 Configuration is via environment variables (the container already loads
 ``prod/.env``):
@@ -21,7 +20,7 @@ Configuration is via environment variables (the container already loads
 ``SERPER_PRIMARY_ENGINES``
   Comma-separated engine names that count as "primary". Default
   ``google,google cse``. Note that an engine which is ``inactive`` or
-  ``disabled`` is never queried, so it cannot gate anything — only engines that
+  ``disabled`` is never queried, so it cannot gate anything. Only engines that
   actually ran are considered.
 
 ``SERPER_MAX_PAGE``
@@ -54,7 +53,7 @@ RESULTS_PER_PAGE = 10
 """Serper's free tier rejects advanced query patterns (``site:``, quoted
 phrases) when ``num`` exceeds 10, answering HTTP 400 *"Query pattern not
 allowed for free accounts"*. Since every query this harness makes is a dork,
-10 is the only safe value here — raise it only on a paid plan."""
+10 is the only safe value here. Raise it only on a paid plan."""
 
 DEFAULT_PRIMARY_ENGINES = "google,google cse"
 

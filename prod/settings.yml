@@ -1,7 +1,7 @@
 # SearXNG override settings for the SyncPundit threat-hunter harness.
 #
 # Loaded via SEARXNG_SETTINGS_PATH (see prod/README.md).  Only DELTAS live
-# here — `use_default_settings: true` merges these over upstream's
+# here. `use_default_settings: true` merges these over upstream's
 # searx/settings.yml, so upstream defaults keep flowing through on
 # `git merge upstream/master`. Secrets come from the environment via the
 # environment tags in searx/settings_loader.py; never hard-code keys here.
@@ -43,12 +43,12 @@ plugins:
   # mechanism (all engines fire in parallel), so this lives in a post_search
   # hook. Serper bills 1 credit per request, so on a normal search where Google
   # CSE answers, this costs nothing. Configured by env: SERPER_API_KEY
-  # (required — without it the plugin deactivates itself at startup),
+  # (required; without it the plugin deactivates itself at startup),
   # SERPER_PRIMARY_ENGINES, SERPER_MAX_PAGE.
   searx.plugins.serper_fallback.SXNGPlugin:
     active: true
 
-# Instance branding. These belong here, NOT in searx/settings.yml — editing the
+# Instance branding belongs here, not in searx/settings.yml. Editing the
 # upstream defaults file means a merge conflict on every `git merge upstream`.
 general:
   donation_url: https://buymeacoffee.com/sync_pundit
@@ -76,7 +76,7 @@ server:
   base_url: "https://searx.syncpundit.io/"
 
   # MUST stay false. Upstream's searx/settings.yml defaults this to TRUE, and
-  # `use_default_settings: true` inherits it — but the old standalone prod
+  # `use_default_settings: true` inherits it, but the old standalone prod
   # settings.yml had it false, so leaving it unset silently flips behaviour.
   # With public_instance true and no Valkey, searx/limiter.py calls
   # sys.exit(1) at startup ("The limiter requires Valkey") and the container
@@ -88,7 +88,7 @@ server:
   # would route every result image through this instance (bandwidth + latency).
   image_proxy: false
 
-  # NOTE: this is only the DEFAULT — a saved preferences cookie overrides it.
+  # This is only the default. A saved preferences cookie overrides it.
   # See `preferences.lock` below, which is what actually guarantees GET.
   #
   # GET instead of the upstream default POST. Required by the nginx JSON gate:
@@ -106,7 +106,7 @@ server:
 # POST /search. That is only safe if nothing legitimate POSTs there.
 #
 # `server.method: "GET"` alone is just a default, and a saved preferences
-# cookie overrides it — a client carrying an older `method=POST` cookie was
+# cookie overrides it. A client carrying an older `method=POST` cookie was
 # locked out of searching entirely (405 on every query). Locking it forces GET
 # for every client regardless of cookie.
 #
@@ -122,7 +122,7 @@ search:
   # SECURITY: this instance is internet-reachable (searx.syncpundit.io) and
   # runs with `limiter: false`.  Enabling JSON turns it into an open JSON search
   # API.  Gate `format=json` (or the whole instance) to the harness at the
-  # reverse proxy — e.g. require an Authorization token / IP allowlist — since
+  # reverse proxy, such as an Authorization token or IP allowlist, because
   # the harness calls SearXNG server-side anyway.
   formats:
     - html
@@ -144,16 +144,16 @@ search:
 #
 # Known-degraded engines as of 2026-08-25 are off by default. Clients can still
 # enable them explicitly in preferences:
-#   brave      ~50% SearxEngineTooManyRequestsException — the HTML scraper and
+#   brave      ~50% SearxEngineTooManyRequestsException. The HTML scraper and
 #              braveapi both hit Brave from this IP on every search
 #   startpage  100% failure: get_sc_code redirected to /sp/captcha
 #              (datacenter-IP block; would need a residential proxy)
 #   bing       two separate problems, measured 2026-07-25:
 #              (a) from this datacenter IP it returns irrelevant results for
-#                  plain queries — degraded rather than blocked, so it looks
+#                  plain queries. It is degraded rather than blocked, so it looks
 #                  like it worked. A residential IP returns good results for
 #                  the same query, so this part is IP reputation.
-#              (b) `site:` dorks are CAPTCHA-walled REGARDLESS of IP —
+#              (b) `site:` dorks are CAPTCHA-walled regardless of IP.
 #                  reproduced from a residential IP and a VPN as well as from
 #                  the server. No proxy fixes this; it is Bing policy on the
 #                  query shape.
@@ -165,7 +165,7 @@ search:
 #                  it only looks like it is.
 #              Bing is therefore unusable for dork-based hunting, which is
 #              most of what this instance is for.
-#              NOTE: upstream itself ships bing with `disabled: true` — that
+#              Upstream itself ships bing with `disabled: true`. That
 #              default is not ours, and clients can still enable it.
 #
 # NOTE: urlscan.io is intentionally NOT a SearXNG engine here.
@@ -201,10 +201,10 @@ engines:
     inactive: !env_not_set "BRAVE_API_KEY"
     disabled: false
 
-  # Yahoo — HTTP/2 disabled for this engine only.
+  # Yahoo uses HTTP/1.1 for this engine only.
   # Yahoo's search hosts break HTTP/2: httpx raises RemoteProtocolError
   # ("Server disconnected") mid-response, which was 100% of yahoo's requests.
-  # Reproduced directly against search.yahoo.com — it fails on HTTP/2 and
+  # Reproduced directly against search.yahoo.com. It fails on HTTP/2 and
   # succeeds on HTTP/1.1, while bing/duckduckgo/brave/startpage are all fine
   # on HTTP/2, so this is Yahoo's bug and not an instance-wide problem.
   # Engine settings become module attributes, and searx/network/network.py
@@ -224,7 +224,7 @@ engines:
   - name: startpage
     disabled: true
 
-  # Bing — OFF BY DEFAULT, client can re-enable in preferences.
+  # Bing is off by default. Clients can re-enable it in preferences.
   # Upstream already ships bing with `disabled: true`; pinned explicitly here
   # so the default cannot drift if upstream ever flips it. See the measured
   # findings above: it does not answer dorks at all, and returns degraded

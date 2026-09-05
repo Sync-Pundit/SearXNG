@@ -82,7 +82,7 @@ def request(query: str, params: "OnlineParams") -> None:
         # Brave's `offset` is a zero-based PAGE index (max 9), not a result
         # offset. Multiplying by results_per_page sends offset=20 for page 2,
         # which the API rejects with HTTP 422 "Unable to validate request
-        # parameter(s)" — so paging was broken beyond page 1.
+        # parameter(s)", so paging was broken beyond page 1.
         "offset": params["pageno"] - 1,
         "text_decorations": False,
     }

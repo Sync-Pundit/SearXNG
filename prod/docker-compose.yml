@@ -1,4 +1,4 @@
-# SyncPundit SearXNG — production compose.
+# SyncPundit SearXNG production Compose file.
 #
 # Runs OUR OWN image built from this fork, not docker.io/searxng/searxng.
 # This is mandatory, not a preference: the `!env` YAML tag used by
@@ -19,12 +19,12 @@ services:
 
     # SECURITY: bind to loopback only. Docker publishes ports by punching
     # straight through the host firewall, so "8080:8080" would expose the
-    # container on the box's public IP and let anyone bypass nginx entirely —
+    # container on the box's public IP and let anyone bypass nginx entirely,
     # including the JSON API gate. nginx is the only intended way in.
     ports:
       - "127.0.0.1:8080:8080"
 
-    # SEARXNG_SECRET, BRAVE_API_KEY — consumed by the `!env` tags in
+    # SEARXNG_SECRET and BRAVE_API_KEY are consumed by the `!env` tags in
     # settings.yml. Never committed (prod/.env is gitignored).
     env_file: ./.env
 
@@ -43,7 +43,7 @@ services:
 # Valkey is only needed if `limiter: true` / `public_instance: true` are set in
 # settings.yml. Both are off, so this stays commented out to avoid a dead
 # container. NOTE: enabling `public_instance` WITHOUT this service makes
-# SearXNG sys.exit(1) at startup — enable the two together, never separately.
+# SearXNG exits at startup. Enable the two together, never separately.
 #
 # valkey:
 #   container_name: searxng-valkey

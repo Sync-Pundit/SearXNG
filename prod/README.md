@@ -1,8 +1,8 @@
 # SyncPundit SearXNG divergence
 
-Config-as-code layer that turns the vanilla fork into the threat-hunter
-harness backend. Everything here is **additive** so `git merge upstream/master`
-stays clean.
+This directory contains the configuration and deployment files that turn the
+fork into the Threat Hunter search backend. The changes are additive so
+`git merge upstream/master` stays manageable.
 
 ## What this adds
 
@@ -18,58 +18,59 @@ stays clean.
 | Own container image | `prod/docker-compose.yml` | deployment |
 | Proxy headers + JSON API gate | `prod/nginx/sites-enabled-default.conf` | deployment (full `sites-enabled/default` replacement) |
 
-Four upstream files are touched, each quarantined to its own commit so merge
-conflicts stay minimal. The latter three are upstream bugs — worth submitting,
-and droppable if/when they land upstream:
+Four upstream files are changed, each in its own commit to limit merge
+conflicts. Three changes fix upstream bugs and can be dropped if upstream lands
+equivalent fixes:
 
 - `settings_loader.py`: the `!env` and `!env_not_set` tags (features this fork adds).
-- `braveapi.py` — Brave's `offset` parameter is a zero-based *page* index
-  (valid 0–9), but the engine sent `(pageno-1) * results_per_page`, i.e.
+- `braveapi.py`: Brave's `offset` parameter is a zero-based *page* index
+  (valid 0-9), but the engine sent `(pageno-1) * results_per_page`, for example
   `offset=20` for page 2. Brave rejects that with HTTP 422, so the engine
   could only ever return page 1.
-- `duckduckgo.py` — a `web-result` div lacking `<h2><a href>` raised
+- `duckduckgo.py`: a `web-result` div lacking `<h2><a href>` raised
   IndexError out of `response()`, discarding *every* result on the page
   rather than the one malformed entry. Accounted for 30% of DDG's errors.
-- `results.py` — plugin-generated results carry synthetic provenance such as
+- `results.py`: plugin-generated results carry synthetic provenance such as
   `plugin: serper_fallback`, which has no engine metrics entry. Scoring used to
   index that name unconditionally and turn a valid fallback into HTTP 500.
 
 ## Serper fallback
 
 `searx/plugins/serper_fallback.py` (new file, not a patch) calls the Serper API
-**only** when every primary Google engine that actually ran returned zero
+only when every primary Google engine that actually ran returned zero
 results. SearXNG fires all engines in parallel and has no conditional-engine
-mechanism, so this lives in a `post_search` hook — the one place that can see
+mechanism, so this lives in a `post_search` hook. That hook can see
 the finished result set and still contribute results.
 
 Env config (already loaded from `prod/.env`):
 
 | Variable | Default | Notes |
 |---|---|---|
-| `SERPER_API_KEY` | — | Required; without it the plugin deactivates at startup |
+| `SERPER_API_KEY` | none | Required; without it the plugin deactivates at startup |
 | `SERPER_PRIMARY_ENGINES` | `google,google cse` | Only engines that *actually ran* can gate |
 | `SERPER_MAX_PAGE` | `5` | Stops deep pagination burning a credit per page |
 
 Costs 1 credit per fired request, 0 when a primary engine answers.
 
-**Free-tier limit:** Serper rejects advanced query patterns (`site:`, quoted
-phrases) when `num > 10` — HTTP 400 *"Query pattern not allowed for free
+### Free-tier limit
+
+Serper rejects advanced query patterns (`site:`, quoted
+phrases) when `num > 10` with HTTP 400 *"Query pattern not allowed for free
 accounts"*. Since every harness query is a dork, `RESULTS_PER_PAGE` is pinned
 to 10. Raise it only on a paid plan.
 
-**Note `google` is currently `inactive: true`** (upstream default, inherited via
-`use_default_settings`), so in practice only `google cse` gates the fallback.
+The upstream default marks `google` as `inactive: true`, inherited through
+`use_default_settings`. In practice, only `google cse` gates the fallback.
 
 ## Engine policy
 
-**Never remove the client's ability to choose an engine.** No `inactive: true`
-and nothing in `preferences.lock`. Changing a *default* with `disabled: true`
-is fine where there's measured evidence, because a client can always switch
-the engine back on in preferences.
+Keep engine choice available to the client. Do not add `inactive: true` or an
+engine to `preferences.lock`. A measured problem may justify `disabled: true`
+because the client can still enable that engine in preferences.
 
 Current state:
 
-- `bing` — `disabled: true`. It does not answer dorks at all: `site:` queries
+- `bing`: `disabled: true`. It does not answer dorks: `site:` queries
   are CAPTCHA-walled from any IP, and once a human solves that, the quoted
   phrase is silently dropped (`site:webflow.io "MetaMask"` returned Lottie
   animations and Minecraft texture packs). Plain queries from this IP are
@@ -80,13 +81,13 @@ Current state:
 
 Mechanics, for when this comes up again:
 
-- `disabled: true` — engine off *by default*; a client can still switch it on.
+- `disabled: true`: engine off *by default*; a client can still switch it on.
   A saved preferences cookie (`disabled_engines`/`enabled_engines`) overrides
   the default per-browser, so a config change won't affect existing sessions
   until the cookie is cleared or preferences re-saved.
-- `inactive: true` — engine not loaded at all; a client **cannot** enable it.
+- `inactive: true`: engine not loaded at all; a client cannot enable it.
   Don't use this here.
-- `preferences.lock` — forces a setting instance-wide and removes client
+- `preferences.lock`: forces a setting instance-wide and removes client
   choice. Contains exactly one entry, `method`, and only because the nginx
   JSON gate depends on it (see below). Nothing else is locked.
 
@@ -94,30 +95,32 @@ Note some engines ship `disabled: true` from **upstream** (e.g. `bing`,
 `google`'s `inactive: true`). Those are upstream defaults, not ours, and
 clients can still enable the `disabled` ones in preferences.
 
-**Not here:** urlscan.io. IOC-verdict lookups are already handled by Odin's
+### Why urlscan.io is not here
+
+IOC-verdict lookups are already handled by Odin's
 Eye (`~/Documents/syncpundit/odin/backend/services/ioc_providers/urlscan.py`);
 the free-text discovery/search use case lives in
 `~/Documents/syncpundit/threat-hunter/threat-intel/urlscan.py`. SearXNG isn't
-the right place for either — see the note in `prod/settings.yml`.
+the right place for either. See the note in `prod/settings.yml`.
 
 ## Why we build our own image
 
 Prod previously ran `docker.io/searxng/searxng` (upstream prebuilt) with a
 mounted settings file. That no longer works: the `!env` tag is implemented in
-**our** `searx/settings_loader.py`, so an upstream image cannot parse
-`prod/settings.yml` — it dies with *"could not determine a constructor for the
+our `searx/settings_loader.py`, so an upstream image cannot parse
+`prod/settings.yml`. It exits with *"could not determine a constructor for the
 tag '!env'"*.
 
-The settings file and the image are now **coupled**. Never point this
+The settings file and the image are coupled. Never point this
 settings.yml at an upstream image, and never `docker pull` over our tag.
 
-Cost of this choice: no more `docker pull` for updates — upstream changes
+This removes `docker pull` as an update path. Upstream changes
 require a rebuild (see *Updating* below). If that ever becomes unwelcome, the
 alternative is to drop the `settings_loader.py` patch and generate settings.yml
 from a template with `envsubst` at deploy time, which keeps stock images
-usable. (Bare-metal `utils/searxng.sh install` is the other option — it runs the
-code straight from a git checkout with no build step — but it would mean
-migrating off Docker entirely.)
+usable. Another option is the bare-metal `utils/searxng.sh install`, which runs
+the code from a Git checkout without a build step but requires moving off
+Docker.
 
 ## Build
 
@@ -131,11 +134,11 @@ GITHUB_REPOSITORY_OWNER=syncpundit ./manage container.build docker
 
 Produces `localhost/syncpundit/searxng:latest` plus a `:<version>` tag.
 Without `GITHUB_REPOSITORY_OWNER` the image is named `localhost/searxng/searxng`,
-which is confusingly close to the upstream image — set it.
+which is easy to confuse with the upstream image. Set the owner explicitly.
 
 ## Deploy
 
-1. Secrets (never in git — `prod/.env` is gitignored):
+1. Create the secrets file. `prod/.env` is ignored by Git:
 
    ```bash
    cp prod/.env.example prod/.env
@@ -173,20 +176,17 @@ which is confusingly close to the upstream image — set it.
    Rotation = edit that line, reload. The token lives only in the deployed
    file, which is not in git.
 
-   > **Never commit the token, and never ship a working placeholder.** A
-   > placeholder in a tracked file becomes a live credential the moment it
-   > deploys unmodified, readable by anyone with repo access. That happened
-   > (2026-07-25): `REPLACE_ME_WITH_A_32_BYTE_HEX_TOKEN` reached prod verbatim
-   > and granted full JSON API access until rotated. The committed map now
-   > ships with the token line **commented out**, so an unmodified deploy
-   > authenticates nobody — JSON closed, which is the safe direction.
+   Never commit the token or ship an active placeholder. On 2026-07-25,
+   `REPLACE_ME_WITH_A_32_BYTE_HEX_TOKEN` reached production unchanged and
+   granted JSON API access until it was rotated. The committed map keeps the
+   token line commented out, so an unmodified deployment authenticates nobody.
 
    Two nginx behaviours worth knowing, both verified against `nginx:alpine`:
 
-   - **Duplicate `map`s do not error.** Two maps defining `$th_authed`
-     silently resolve to the **last** one. A stale map further down the file
+   - Duplicate `map` blocks do not error. Two maps defining `$th_authed`
+     silently resolve to the last one. A stale map further down the file
      will quietly override this gate with no warning.
-   - **`map` matches string keys case-insensitively**, so a lowercase hex
+   - `map` matches string keys case-insensitively, so a lowercase hex
      token matches a mixed-case key. Case is never the cause of a 403 here.
 
 ### Local dev (no container)

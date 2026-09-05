@@ -229,7 +229,7 @@ lang_map.update(
         "nrm": "nrf",
         "roa-rup": "rup",
         "nds-nl": "nds",
-        #'simple: – invented code used for the Simple English Wikipedia (not the official IETF code en-simple)
+        #'simple: invented code used for the Simple English Wikipedia (not the official IETF code en-simple)
         "zh-min-nan": "nan",
         "zh-yue": "yue",
         "an": "arg",
