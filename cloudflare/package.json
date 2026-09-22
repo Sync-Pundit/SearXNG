@@ -1,0 +1,15 @@
+{
+  "name": "searxng-cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.136.2"
+  }
+}

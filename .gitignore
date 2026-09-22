@@ -20,6 +20,10 @@ gh-pages/
 
 /package-lock.json
 /node_modules/
+/.firecrawl/
+/cloudflare/node_modules/
+/cloudflare/.wrangler/
+/cloudflare/.dev.vars*
 
 .idea/
 

@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "searxng",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-22",
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false
+    },
+    "traces": {
+      "enabled": false
+    }
+  }
+}
