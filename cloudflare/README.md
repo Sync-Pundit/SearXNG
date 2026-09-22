@@ -10,6 +10,10 @@ This Worker is the migration path from SearXNG to a Cloudflare-native search ser
 
 The probes return status, timing, content type, sampled byte count, and a SHA-256 digest. They do not return or store upstream response content.
 
+## Live deployment
+
+The compatibility Worker runs at `https://searxng.pundit-workers.workers.dev/`. Cloudflare Workers Builds deploys every push to `cloudflare-deploy`; do not deploy this Worker from a developer machine.
+
 ## Run locally
 
 Install dependencies and run the checks:
