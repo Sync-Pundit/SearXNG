@@ -27,22 +27,45 @@ test("health endpoint reports the worker", async () => {
   assert.deepEqual(await response.json(), { ok: true, worker: "searxng" });
 });
 
-test("root serves the browser search console with a nonce-bound policy", async () => {
+test("root serves the SearXNG Simple shell with a nonce-bound policy", async () => {
   const response = await handleRequest(request("/"));
   const body = await response.text();
   const policy = response.headers.get("Content-Security-Policy");
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get("Content-Type"), /^text\/html/);
-  assert.match(body, /<section class="panel search-panel" id="search-form" role="search">/);
+  assert.match(body, /href="\/static\/themes\/simple\/sxng-ltr\.min\.css"/);
+  assert.match(body, /class="theme-auto center-alignment-no"/);
+  assert.match(body, /<form id="search"[^>]*role="search">/);
+  assert.match(body, /id="results"/);
+  assert.match(body, /article\.className = "result result-default category-general"/);
   assert.match(body, /id="token"[^>]*type="password"/);
-  assert.match(body, /id="query"[^>]*maxlength="499"/);
-  assert.match(body, /fetch\(url/);
+  assert.match(body, /id="q"[^>]*maxlength="499"/);
+  assert.match(body, /fetch\("\/search\?" \+ parameters/);
   assert.match(policy, /default-src 'none'/);
   const nonce = body.match(/<script nonce="([a-f0-9]+)">/)?.[1];
   assert.ok(nonce);
   assert.match(policy, new RegExp(`script-src 'nonce-${nonce}'`));
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
+});
+
+test("SearXNG theme requests are rewritten through the assets binding", async () => {
+  const seen = [];
+  const response = await handleRequest(
+    request("/static/themes/simple/sxng-ltr.min.css"),
+    {
+      ASSETS: {
+        fetch(assetRequest) {
+          seen.push(assetRequest.url);
+          return new Response("theme", { headers: { "Content-Type": "text/css" } });
+        },
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "theme");
+  assert.deepEqual(seen, ["https://searxng.example/sxng-ltr.min.css"]);
 });
 
 test("compatibility catalog exposes only fixed probes", async () => {

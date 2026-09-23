@@ -281,6 +281,15 @@ export async function handleRequest(
 ) {
   const url = new URL(request.url);
 
+  if (url.pathname.startsWith("/static/themes/simple/")) {
+    if (!env.ASSETS) {
+      return json({ error: "Static assets are not configured" }, 503);
+    }
+    const assetUrl = new URL(request.url);
+    assetUrl.pathname = url.pathname.slice("/static/themes/simple".length);
+    return env.ASSETS.fetch(new Request(assetUrl, request));
+  }
+
   if (url.pathname === "/healthz" && (request.method === "GET" || request.method === "HEAD")) {
     return json({ ok: true, worker: "searxng" });
   }
