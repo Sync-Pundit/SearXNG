@@ -1,3 +1,5 @@
+import { DuckDuckGoError, searchDuckDuckGo } from "./duckduckgo.js";
+
 const SAMPLE_LIMIT_BYTES = 64 * 1024;
 const PROBE_TIMEOUT_MS = 8_000;
 
@@ -156,6 +158,40 @@ async function parseRunRequest(request) {
   return { names };
 }
 
+function parseSearchRequest(url) {
+  const query = url.searchParams.get("q") || "";
+  if (!query.trim()) {
+    return { error: json({ error: "No query" }, 400) };
+  }
+  if (query.length >= 500) {
+    return { error: json({ error: "DuckDuckGo accepts queries shorter than 500 characters" }, 400) };
+  }
+
+  const format = url.searchParams.get("format") || "json";
+  if (format !== "json") {
+    return { error: json({ error: "Only format=json is supported" }, 406) };
+  }
+
+  const rawPage = url.searchParams.get("pageno") || "1";
+  if (!/^[1-9]\d*$/.test(rawPage)) {
+    return { error: json({ error: "pageno must be a positive integer" }, 400) };
+  }
+
+  return { page: Number(rawPage), query };
+}
+
+function searchResponse(query, results, unresponsiveEngines = []) {
+  return {
+    query,
+    results,
+    answers: [],
+    corrections: [],
+    infoboxes: [],
+    suggestions: [],
+    unresponsive_engines: unresponsiveEngines,
+  };
+}
+
 async function readSample(body, limit) {
   if (!body) {
     return new Uint8Array();
@@ -236,7 +272,12 @@ export async function runProbe(name, fetcher = fetch) {
   }
 }
 
-export async function handleRequest(request, env = {}, fetcher = fetch) {
+export async function handleRequest(
+  request,
+  env = {},
+  fetcher = fetch,
+  rewriterFactory = () => new HTMLRewriter(),
+) {
   const url = new URL(request.url);
 
   if (url.pathname === "/healthz" && (request.method === "GET" || request.method === "HEAD")) {
@@ -251,6 +292,7 @@ export async function handleRequest(request, env = {}, fetcher = fetch) {
         health: "GET /healthz",
         catalog: "GET /compat",
         run: "POST /compat/run",
+        search: "GET /search?q=...&format=json&pageno=1",
       },
     });
   }
@@ -278,11 +320,46 @@ export async function handleRequest(request, env = {}, fetcher = fetch) {
     return json({ results });
   }
 
+  if (url.pathname === "/search") {
+    if (request.method !== "GET") {
+      return json({ error: "Method not allowed" }, 405, { Allow: "GET" });
+    }
+
+    const authError = await authorize(request, env);
+    if (authError) {
+      return authError;
+    }
+
+    const parsed = parseSearchRequest(url);
+    if (parsed.error) {
+      return parsed.error;
+    }
+
+    try {
+      const results = await searchDuckDuckGo(
+        parsed.query,
+        parsed.page,
+        fetcher,
+        rewriterFactory,
+      );
+      return json(searchResponse(parsed.query, results));
+    } catch (error) {
+      const reason = error instanceof DuckDuckGoError ? error.reason : "unexpected error";
+      return json(
+        {
+          error: "Search provider unavailable",
+          ...searchResponse(parsed.query, [], [["duckduckgo", reason]]),
+        },
+        502,
+      );
+    }
+  }
+
   return json({ error: "Not found" }, 404);
 }
 
 export default {
   fetch(request, env) {
-    return handleRequest(request, env, fetch);
+    return handleRequest(request, env, fetch, () => new HTMLRewriter());
   },
 };

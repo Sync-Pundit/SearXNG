@@ -1,14 +1,17 @@
 # Cloudflare compatibility worker
 
-This Worker is the migration path from SearXNG to a Cloudflare-native search service. The first slice measures outbound HTTP compatibility without exposing an arbitrary URL or query endpoint.
+This Worker is the migration path from SearXNG to a Cloudflare-native search service. It retains the fixed outbound compatibility probes and now exposes the first authenticated SearXNG-compatible search path backed by DuckDuckGo HTML.
 
 ## Routes
 
 - `GET /healthz` returns Worker health.
 - `GET /compat` lists the fixed compatibility probes.
 - `POST /compat/run` runs selected probes. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
+- `GET /search?q=...&format=json&pageno=1` runs a DuckDuckGo search. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
 
 The probes return status, timing, content type, sampled byte count, and a SHA-256 digest. They do not return or store upstream response content.
+
+The search route accepts the query and positive page number used by Threat Hunter. The Worker owns the upstream URL, request method, and headers. Results retain the SearXNG JSON fields consumed by Threat Hunter, including engine provenance and rank score. A provider failure returns HTTP 502 instead of looking like a valid empty result set.
 
 ## Live deployment
 
