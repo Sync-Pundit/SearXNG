@@ -4,6 +4,7 @@ This Worker is the migration path from SearXNG to a Cloudflare-native search ser
 
 ## Routes
 
+- `GET /` opens the browser search console. The bearer token stays in tab-scoped session storage.
 - `GET /healthz` returns Worker health.
 - `GET /compat` lists the fixed compatibility probes.
 - `POST /compat/run` runs selected probes. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.

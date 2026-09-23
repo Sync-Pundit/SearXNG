@@ -1,4 +1,5 @@
 import { DuckDuckGoError, searchDuckDuckGo } from "./duckduckgo.js";
+import { searchUi } from "./ui.js";
 
 const SAMPLE_LIMIT_BYTES = 64 * 1024;
 const PROBE_TIMEOUT_MS = 8_000;
@@ -285,16 +286,7 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/" && request.method === "GET") {
-    return json({
-      worker: "searxng",
-      purpose: "Cloudflare compatibility spikes for the SearXNG migration",
-      endpoints: {
-        health: "GET /healthz",
-        catalog: "GET /compat",
-        run: "POST /compat/run",
-        search: "GET /search?q=...&format=json&pageno=1",
-      },
-    });
+    return searchUi();
   }
 
   if (url.pathname === "/compat" && request.method === "GET") {
