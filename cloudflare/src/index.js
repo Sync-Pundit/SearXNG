@@ -1,4 +1,5 @@
 import { BraveError, searchBrave } from "./brave.js";
+import { BraveHtmlError, searchBraveHtml } from "./brave-html.js";
 import { DuckDuckGoError, searchDuckDuckGo } from "./duckduckgo.js";
 import { searchUi } from "./ui.js";
 
@@ -180,13 +181,13 @@ function parseSearchRequest(url) {
   }
 
   const engine = url.searchParams.get("engines") || "duckduckgo";
-  if (engine !== "duckduckgo" && engine !== "braveapi") {
+  if (!new Set(["brave", "braveapi", "duckduckgo"]).has(engine)) {
     return { error: json({ error: "Unsupported search engine" }, 400) };
   }
 
   const page = Number(rawPage);
-  if (engine === "braveapi" && page > 10) {
-    return { error: json({ error: "Brave Search supports pages 1 through 10" }, 400) };
+  if ((engine === "brave" || engine === "braveapi") && page > 10) {
+    return { error: json({ error: "Brave engines support pages 1 through 10" }, 400) };
   }
 
   return { engine, page, query };
@@ -306,7 +307,7 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/" && request.method === "GET") {
-    return searchUi({ braveConfigured: Boolean(env.BRAVE_API_KEY) });
+    return searchUi({ braveApiConfigured: Boolean(env.BRAVE_API_KEY) });
   }
 
   if (url.pathname === "/compat" && request.method === "GET") {
@@ -358,12 +359,19 @@ export async function handleRequest(
     }
 
     try {
-      const results = parsed.engine === "braveapi"
-        ? await searchBrave(parsed.query, parsed.page, env.BRAVE_API_KEY, fetcher)
-        : await searchDuckDuckGo(parsed.query, parsed.page, fetcher, rewriterFactory);
+      let results;
+      if (parsed.engine === "braveapi") {
+        results = await searchBrave(parsed.query, parsed.page, env.BRAVE_API_KEY, fetcher);
+      } else if (parsed.engine === "brave") {
+        results = await searchBraveHtml(parsed.query, parsed.page, fetcher, rewriterFactory);
+      } else {
+        results = await searchDuckDuckGo(parsed.query, parsed.page, fetcher, rewriterFactory);
+      }
       return json(searchResponse(parsed.query, results));
     } catch (error) {
-      const reason = error instanceof DuckDuckGoError || error instanceof BraveError
+      const reason = error instanceof DuckDuckGoError
+        || error instanceof BraveError
+        || error instanceof BraveHtmlError
         ? error.reason
         : "unexpected error";
       return json(

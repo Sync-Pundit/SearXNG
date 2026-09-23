@@ -41,6 +41,7 @@ test("root serves the SearXNG Simple shell with a nonce-bound policy", async () 
   assert.match(body, /article\.className = "result result-default category-general"/);
   assert.match(body, /id="token"[^>]*type="password"/);
   assert.match(body, /id="q"[^>]*maxlength="499"/);
+  assert.match(body, /value="brave">Brave<\/option>/);
   assert.match(body, /value="braveapi" disabled>Brave API \(not configured\)/);
   assert.match(body, /fetch\("\/search\?" \+ parameters/);
   assert.match(policy, /default-src 'none'/);
@@ -50,11 +51,12 @@ test("root serves the SearXNG Simple shell with a nonce-bound policy", async () 
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
 });
 
-test("root enables Brave only when its server-side secret exists", async () => {
+test("root enables Brave API only when its server-side secret exists", async () => {
   const response = await handleRequest(request("/"), { BRAVE_API_KEY: "configured" });
   const body = await response.text();
 
   assert.equal(response.status, 200);
+  assert.match(body, /value="brave">Brave<\/option>/);
   assert.match(body, /value="braveapi" >Brave API<\/option>/);
   assert.doesNotMatch(body, /__BRAVE_/);
 });

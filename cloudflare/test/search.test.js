@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { braveEndpoint } from "../src/brave.js";
+import { braveHtmlEndpoint } from "../src/brave-html.js";
 import { duckDuckGoEndpoint } from "../src/duckduckgo.js";
 import { handleRequest } from "../src/index.js";
 
@@ -33,6 +34,34 @@ const SECOND_PAGE = `
       <a class="result__snippet">A later page</a>
     </div>
   </div></body></html>
+`;
+
+const BRAVE_PAGE = `
+  <html><body><main id="search-page">
+    <div class="snippet" data-type="web">
+      <div class="result-content">
+        <a href="https://example.github.io/metamask/">
+          <div class="title search-snippet-title">Threat <strong>hunt</strong></div>
+        </a>
+        <div class="generic-snippet"><div class="content">A Brave <strong>HTML</strong> result</div></div>
+      </div>
+    </div><!--result-->
+    <div class="snippet" data-type="web">
+      <div class="result-content">
+        <a href="https://example.github.io/metamask/">
+          <div class="title search-snippet-title">Duplicate</div>
+        </a>
+        <div class="generic-snippet"><div class="content">Duplicate</div></div>
+      </div>
+    </div><!--result-->
+    <div class="snippet" data-type="web">
+      <div class="result-content">
+        <a href="javascript:alert(1)">
+          <div class="title search-snippet-title">Unsafe</div>
+        </a>
+      </div>
+    </div><!--result-->
+  </main></body></html>
 `;
 
 function authenticatedRequest(path, init = {}) {
@@ -130,6 +159,69 @@ class FixtureHTMLRewriter {
 }
 
 const rewriterFactory = () => new FixtureHTMLRewriter();
+
+class FixtureBraveHTMLRewriter {
+  constructor() {
+    this.handlers = new Map();
+  }
+
+  on(selector, handler) {
+    this.handlers.set(selector, handler);
+    return this;
+  }
+
+  transform(response) {
+    return {
+      text: async () => {
+        const html = await response.text();
+        if (/<main[^>]*id="search-page"/i.test(html)) {
+          this.handlers.get("main#search-page").element();
+        }
+        if (/id="challenge-form"/i.test(html)) {
+          this.handlers.get("form#challenge-form").element();
+        }
+        if (/class="[^"]*no-results/i.test(html)) {
+          this.handlers.get("div.no-results").element();
+        }
+
+        for (const row of html.matchAll(/<div class="snippet" data-type="web">([\s\S]*?)<!--result-->/gi)) {
+          const endHandlers = [];
+          this.handlers
+            .get('div.snippet[data-type="web"]')
+            .element(elementFrom(row[0], endHandlers));
+
+          const link = row[1].match(/<a href="([^"]+)"/i);
+          if (link) {
+            this.handlers
+              .get('div.snippet[data-type="web"] div.result-content > a[href]')
+              .element(elementFrom(`<a href="${link[1]}">`));
+          }
+
+          const title = row[1].match(/<div class="title search-snippet-title">([\s\S]*?)<\/div>/i);
+          if (title) {
+            this.handlers
+              .get('div.snippet[data-type="web"] div.search-snippet-title')
+              .text({ text: textValue(title[1]) });
+          }
+
+          const content = row[1].match(/<div class="content">([\s\S]*?)<\/div>/i);
+          if (content) {
+            this.handlers
+              .get('div.snippet[data-type="web"] div.generic-snippet div.content')
+              .text({ text: textValue(content[1]) });
+          }
+
+          for (const handler of endHandlers) {
+            handler();
+          }
+        }
+        return html;
+      },
+    };
+  }
+}
+
+const braveRewriterFactory = () => new FixtureBraveHTMLRewriter();
 
 test("search requires the configured bearer token", async () => {
   const response = await handleRequest(
@@ -292,6 +384,74 @@ test("Brave API preserves dorks and uses its page-index offset", async () => {
   });
 });
 
+test("Brave HTML preserves dorks and parses SearXNG-compatible results", async () => {
+  const calls = [];
+  const response = await handleRequest(
+    authenticatedRequest(
+      '/search?q=site%3Awebflow.io+%22MetaMask%22&format=json&pageno=2&engines=brave',
+    ),
+    { SPIKE_AUTH_TOKEN: TOKEN },
+    async (url, init) => {
+      calls.push({
+        accept: init.headers.Accept,
+        cookie: init.headers.Cookie,
+        method: init.method,
+        redirect: init.redirect,
+        url: String(url),
+      });
+      return new Response(BRAVE_PAGE, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    },
+    braveRewriterFactory,
+  );
+  const body = await response.json();
+  const upstream = new URL(calls[0].url);
+
+  assert.equal(response.status, 200);
+  assert.equal(upstream.origin + upstream.pathname, braveHtmlEndpoint);
+  assert.equal(upstream.searchParams.get("q"), 'site:webflow.io "MetaMask"');
+  assert.equal(upstream.searchParams.get("source"), "web");
+  assert.equal(upstream.searchParams.get("spellcheck"), "0");
+  assert.equal(upstream.searchParams.get("offset"), "1");
+  assert.deepEqual(calls[0], {
+    accept: "text/html,application/xhtml+xml",
+    cookie: "safesearch=moderate; useLocation=0; summarizer=0",
+    method: "GET",
+    redirect: "follow",
+    url: calls[0].url,
+  });
+  assert.deepEqual(body.results, [{
+    category: "general",
+    content: "A Brave HTML result",
+    engine: "brave",
+    engines: ["brave"],
+    positions: [1],
+    score: 1,
+    template: "default.html",
+    title: "Threat hunt",
+    url: "https://example.github.io/metamask/",
+  }]);
+});
+
+test("Brave HTML parser drift is unavailable rather than an empty successful search", async () => {
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=test&format=json&engines=brave"),
+    { SPIKE_AUTH_TOKEN: TOKEN },
+    async () => new Response("<html><body>changed layout</body></html>", {
+      status: 200,
+      headers: { "Content-Type": "text/html" },
+    }),
+    braveRewriterFactory,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(body.results, []);
+  assert.deepEqual(body.unresponsive_engines, [["brave", "parsing error"]]);
+});
+
 test("Brave API requires its server-side secret before network access", async () => {
   let fetchCalls = 0;
   const response = await handleRequest(
@@ -320,6 +480,35 @@ test("Brave rate limits are unavailable rather than empty successful searches", 
   assert.equal(response.status, 502);
   assert.deepEqual(body.results, []);
   assert.deepEqual(body.unresponsive_engines, [["braveapi", "rate limited"]]);
+});
+
+test("Brave API usage exhaustion is unavailable rather than an empty successful search", async () => {
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=test&format=json&engines=braveapi"),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async () => Response.json({ error: { code: "USAGE_LIMIT_EXCEEDED" } }, { status: 402 }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(body.results, []);
+  assert.deepEqual(body.unresponsive_engines, [["braveapi", "usage limit exceeded"]]);
+});
+
+test("Brave API identifies its 422 invalid-token response as authentication failure", async () => {
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=test&format=json&engines=braveapi"),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async () => Response.json(
+      { error: { code: "SUBSCRIPTION_TOKEN_INVALID" } },
+      { status: 422 },
+    ),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(body.results, []);
+  assert.deepEqual(body.unresponsive_engines, [["braveapi", "authentication error"]]);
 });
 
 test("search accepts only GET", async () => {

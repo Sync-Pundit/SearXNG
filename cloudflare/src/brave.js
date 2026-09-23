@@ -68,10 +68,19 @@ function compatibleResults(data) {
   });
 }
 
-function failureReason(status) {
-  if (status === 401 || status === 403) return "authentication error";
-  if (status === 422) return "query rejected";
-  if (status === 429) return "rate limited";
+async function failureReason(response) {
+  if (response.status === 401 || response.status === 403) return "authentication error";
+  if (response.status === 402) return "usage limit exceeded";
+  if (response.status === 422) {
+    try {
+      const data = await response.clone().json();
+      if (data?.error?.code === "SUBSCRIPTION_TOKEN_INVALID") return "authentication error";
+    } catch {
+      // The status still identifies a rejected request when the error body is not JSON.
+    }
+    return "query rejected";
+  }
+  if (response.status === 429) return "rate limited";
   return "HTTP error";
 }
 
@@ -97,7 +106,7 @@ export async function searchBrave(query, page, apiKey, fetcher = fetch) {
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new BraveError(`Brave returned HTTP ${response.status}`, failureReason(response.status));
+      throw new BraveError(`Brave returned HTTP ${response.status}`, await failureReason(response));
     }
 
     let data;

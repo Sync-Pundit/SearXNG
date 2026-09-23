@@ -1,6 +1,6 @@
 # Cloudflare compatibility worker
 
-This Worker is the migration path from SearXNG to a Cloudflare-native search service. It retains the fixed outbound compatibility probes and now exposes the first authenticated SearXNG-compatible search path backed by DuckDuckGo HTML.
+This Worker is the migration path from SearXNG to a Cloudflare-native search service. It retains the fixed outbound compatibility probes and exposes authenticated SearXNG-compatible search paths backed by DuckDuckGo HTML, Brave HTML, and the Brave Search API.
 
 ## Routes
 
@@ -8,11 +8,17 @@ This Worker is the migration path from SearXNG to a Cloudflare-native search ser
 - `GET /healthz` returns Worker health.
 - `GET /compat` lists the fixed compatibility probes.
 - `POST /compat/run` runs selected probes. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
-- `GET /search?q=...&format=json&pageno=1&engines=duckduckgo` runs a DuckDuckGo search. Set `engines=braveapi` to use the Brave Search API. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
+- `GET /search?q=...&format=json&pageno=1&engines=duckduckgo` runs a DuckDuckGo HTML search. Set `engines=brave` to parse Brave Search HTML or `engines=braveapi` to use the Brave Search API. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
 
 The probes return status, timing, content type, sampled byte count, and a SHA-256 digest. They do not return or store upstream response content.
 
 The search route accepts the query, positive page number, and implemented engine choice used by Threat Hunter. DuckDuckGo remains the default when the engine is omitted. The Worker owns the upstream URL, request method, and headers. Results retain the SearXNG JSON fields consumed by Threat Hunter, including engine provenance and rank score. A provider failure returns HTTP 502 instead of looking like a valid empty result set.
+
+## Access boundary
+
+The `workers.dev` hostname is public. `SPIKE_AUTH_TOKEN` prevents anonymous callers from consuming search-provider quota during compatibility testing. The token field in the browser is an acceptance tool, not the planned production credential flow.
+
+When Threat Hunter moves to Cloudflare, it should call this Worker through a Worker service binding. That internal call does not need the browser token field. Keep the public `/search` route authenticated or disable it when the service binding becomes the production path.
 
 ## Live deployment
 

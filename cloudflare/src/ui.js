@@ -115,7 +115,8 @@ const PAGE = `<!doctype html>
         <div class="search_filters">
           <select id="engine" name="engines" aria-label="Search engine">
             <option value="duckduckgo">DuckDuckGo</option>
-            <option value="braveapi" __BRAVE_DISABLED__>Brave API__BRAVE_LABEL__</option>
+            <option value="brave">Brave</option>
+            <option value="braveapi" __BRAVE_API_DISABLED__>Brave API__BRAVE_API_LABEL__</option>
           </select>
         </div>
       </form>
@@ -138,7 +139,8 @@ const PAGE = `<!doctype html>
         <div class="search_filters">
           <select id="engine-results" name="engines" aria-label="Search engine">
             <option value="duckduckgo">DuckDuckGo</option>
-            <option value="braveapi" __BRAVE_DISABLED__>Brave API__BRAVE_LABEL__</option>
+            <option value="brave">Brave</option>
+            <option value="braveapi" __BRAVE_API_DISABLED__>Brave API__BRAVE_API_LABEL__</option>
           </select>
         </div>
       </form>
@@ -369,7 +371,7 @@ const PAGE = `<!doctype html>
       const initialEngine = initial.get("engines") || "duckduckgo";
       homeQuery.value = initialQuery;
       resultsQuery.value = initialQuery;
-      if (["duckduckgo", "braveapi"].includes(initialEngine)) {
+      if (["brave", "braveapi", "duckduckgo"].includes(initialEngine)) {
         homeEngine.value = initialEngine;
         resultsEngine.value = initialEngine;
       }
@@ -390,12 +392,12 @@ function nonce() {
   return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-export function searchUi({ braveConfigured = false } = {}) {
+export function searchUi({ braveApiConfigured = false } = {}) {
   const value = nonce();
   const body = PAGE
     .replaceAll("__NONCE__", value)
-    .replaceAll("__BRAVE_DISABLED__", braveConfigured ? "" : "disabled")
-    .replaceAll("__BRAVE_LABEL__", braveConfigured ? "" : " (not configured)");
+    .replaceAll("__BRAVE_API_DISABLED__", braveApiConfigured ? "" : "disabled")
+    .replaceAll("__BRAVE_API_LABEL__", braveApiConfigured ? "" : " (not configured)");
   return new Response(body, {
     headers: {
       "Cache-Control": "no-store",
