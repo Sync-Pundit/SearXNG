@@ -42,7 +42,7 @@ Connect `Sync-Pundit/SearXNG` to the `searxng` Worker with these settings:
 - Deploy command: `npm run deploy`
 - Non-production branch builds: disabled
 
-Cloudflare owns the build token. Do not copy a local Wrangler OAuth token into GitHub.
+Cloudflare owns the dedicated `searxng build token`. Do not copy a local Wrangler OAuth token into GitHub.
 
 Add `SPIKE_AUTH_TOKEN` as a runtime secret after the first deployment. Future pushes to `cloudflare-deploy` preserve the secret and deploy the new Worker version.
 
