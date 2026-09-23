@@ -1,3 +1,4 @@
+import { BraveError, searchBrave } from "./brave.js";
 import { DuckDuckGoError, searchDuckDuckGo } from "./duckduckgo.js";
 import { searchUi } from "./ui.js";
 
@@ -165,7 +166,7 @@ function parseSearchRequest(url) {
     return { error: json({ error: "No query" }, 400) };
   }
   if (query.length >= 500) {
-    return { error: json({ error: "DuckDuckGo accepts queries shorter than 500 characters" }, 400) };
+    return { error: json({ error: "Search queries must be shorter than 500 characters" }, 400) };
   }
 
   const format = url.searchParams.get("format") || "json";
@@ -178,7 +179,17 @@ function parseSearchRequest(url) {
     return { error: json({ error: "pageno must be a positive integer" }, 400) };
   }
 
-  return { page: Number(rawPage), query };
+  const engine = url.searchParams.get("engines") || "duckduckgo";
+  if (engine !== "duckduckgo" && engine !== "braveapi") {
+    return { error: json({ error: "Unsupported search engine" }, 400) };
+  }
+
+  const page = Number(rawPage);
+  if (engine === "braveapi" && page > 10) {
+    return { error: json({ error: "Brave Search supports pages 1 through 10" }, 400) };
+  }
+
+  return { engine, page, query };
 }
 
 function searchResponse(query, results, unresponsiveEngines = []) {
@@ -295,7 +306,7 @@ export async function handleRequest(
   }
 
   if (url.pathname === "/" && request.method === "GET") {
-    return searchUi();
+    return searchUi({ braveConfigured: Boolean(env.BRAVE_API_KEY) });
   }
 
   if (url.pathname === "/compat" && request.method === "GET") {
@@ -336,20 +347,29 @@ export async function handleRequest(
       return parsed.error;
     }
 
-    try {
-      const results = await searchDuckDuckGo(
-        parsed.query,
-        parsed.page,
-        fetcher,
-        rewriterFactory,
-      );
-      return json(searchResponse(parsed.query, results));
-    } catch (error) {
-      const reason = error instanceof DuckDuckGoError ? error.reason : "unexpected error";
+    if (parsed.engine === "braveapi" && !env.BRAVE_API_KEY) {
       return json(
         {
           error: "Search provider unavailable",
-          ...searchResponse(parsed.query, [], [["duckduckgo", reason]]),
+          ...searchResponse(parsed.query, [], [["braveapi", "not configured"]]),
+        },
+        503,
+      );
+    }
+
+    try {
+      const results = parsed.engine === "braveapi"
+        ? await searchBrave(parsed.query, parsed.page, env.BRAVE_API_KEY, fetcher)
+        : await searchDuckDuckGo(parsed.query, parsed.page, fetcher, rewriterFactory);
+      return json(searchResponse(parsed.query, results));
+    } catch (error) {
+      const reason = error instanceof DuckDuckGoError || error instanceof BraveError
+        ? error.reason
+        : "unexpected error";
+      return json(
+        {
+          error: "Search provider unavailable",
+          ...searchResponse(parsed.query, [], [[parsed.engine, reason]]),
         },
         502,
       );

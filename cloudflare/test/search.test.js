@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { braveEndpoint } from "../src/brave.js";
 import { duckDuckGoEndpoint } from "../src/duckduckgo.js";
 import { handleRequest } from "../src/index.js";
 
@@ -179,7 +180,7 @@ test("page two uses the continuation token without exposing upstream controls", 
   const calls = [];
   const response = await handleRequest(
     authenticatedRequest(
-      "/search?q=wallet&format=json&pageno=2&url=https%3A%2F%2F127.0.0.1&engine=private",
+      "/search?q=wallet&format=json&pageno=2&engines=duckduckgo&url=https%3A%2F%2F127.0.0.1",
     ),
     { SPIKE_AUTH_TOKEN: TOKEN },
     async (url, init) => {
@@ -204,6 +205,8 @@ test("search rejects inputs outside the retained contract before fetching", asyn
     ["/search?format=json", 400],
     ["/search?q=test&format=html", 406],
     ["/search?q=test&format=json&pageno=0", 400],
+    ["/search?q=test&format=json&engines=private", 400],
+    ["/search?q=test&format=json&engines=braveapi&pageno=11", 400],
     [`/search?q=${"x".repeat(500)}&format=json`, 400],
   ];
 
@@ -221,6 +224,102 @@ test("search rejects inputs outside the retained contract before fetching", asyn
     assert.equal(response.status, expectedStatus, path);
     assert.equal(fetchCalls, 0, path);
   }
+});
+
+test("Brave API preserves dorks and uses its page-index offset", async () => {
+  const calls = [];
+  const response = await handleRequest(
+    authenticatedRequest(
+      '/search?q=site%3Awebflow.io+%22MetaMask%22&format=json&pageno=2&engines=braveapi',
+    ),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async (url, init) => {
+      calls.push({
+        accept: init.headers.Accept,
+        method: init.method,
+        redirect: init.redirect,
+        token: init.headers["X-Subscription-Token"],
+        url: String(url),
+      });
+      return Response.json({
+        web: {
+          results: [
+            {
+              age: "July 25, 2026",
+              description: "A <strong>MetaMask</strong> &amp; wallet page",
+              title: "Threat &lt;hunt&gt;",
+              url: "https://example.github.io/metamask/",
+            },
+            {
+              description: "Duplicate",
+              title: "Duplicate",
+              url: "https://example.github.io/metamask/",
+            },
+            { title: "Unsafe", url: "javascript:alert(1)" },
+          ],
+        },
+      });
+    },
+  );
+  const body = await response.json();
+  const upstream = new URL(calls[0].url);
+
+  assert.equal(response.status, 200);
+  assert.equal(upstream.origin + upstream.pathname, braveEndpoint);
+  assert.equal(upstream.searchParams.get("q"), 'site:webflow.io "MetaMask"');
+  assert.equal(upstream.searchParams.get("count"), "20");
+  assert.equal(upstream.searchParams.get("offset"), "1");
+  assert.equal(upstream.searchParams.get("text_decorations"), "false");
+  assert.deepEqual(calls[0], {
+    accept: "application/json",
+    method: "GET",
+    redirect: "error",
+    token: "brave-secret",
+    url: calls[0].url,
+  });
+  assert.equal(body.results.length, 1);
+  assert.deepEqual(body.results[0], {
+    category: "general",
+    content: "A MetaMask & wallet page",
+    engine: "braveapi",
+    engines: ["braveapi"],
+    positions: [1],
+    publishedDate: "July 25, 2026",
+    score: 1,
+    template: "default.html",
+    title: "Threat <hunt>",
+    url: "https://example.github.io/metamask/",
+  });
+});
+
+test("Brave API requires its server-side secret before network access", async () => {
+  let fetchCalls = 0;
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=test&format=json&engines=braveapi"),
+    { SPIKE_AUTH_TOKEN: TOKEN },
+    async () => {
+      fetchCalls += 1;
+      return Response.json({});
+    },
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(fetchCalls, 0);
+  assert.deepEqual(body.unresponsive_engines, [["braveapi", "not configured"]]);
+});
+
+test("Brave rate limits are unavailable rather than empty successful searches", async () => {
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=test&format=json&engines=braveapi"),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async () => Response.json({ error: { code: "RATE_LIMITED" } }, { status: 429 }),
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 502);
+  assert.deepEqual(body.results, []);
+  assert.deepEqual(body.unresponsive_engines, [["braveapi", "rate limited"]]);
 });
 
 test("search accepts only GET", async () => {

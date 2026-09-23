@@ -112,6 +112,12 @@ const PAGE = `<!doctype html>
             </div>
           </div>
         </div>
+        <div class="search_filters">
+          <select id="engine" name="engines" aria-label="Search engine">
+            <option value="duckduckgo">DuckDuckGo</option>
+            <option value="braveapi" __BRAVE_DISABLED__>Brave API__BRAVE_LABEL__</option>
+          </select>
+        </div>
       </form>
     </section>
 
@@ -128,6 +134,12 @@ const PAGE = `<!doctype html>
               <button type="submit" aria-label="search"><svg viewBox="0 0 512 512" class="sxng-icon-set-big" aria-hidden="true"><path d="M221.09 64a157.09 157.09 0 1 0 157.09 157.09A157.1 157.1 0 0 0 221.09 64Z" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="32"/><path d="M338.29 338.29 448 448" fill="none" stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="32"/></svg></button>
             </div>
           </div>
+        </div>
+        <div class="search_filters">
+          <select id="engine-results" name="engines" aria-label="Search engine">
+            <option value="duckduckgo">DuckDuckGo</option>
+            <option value="braveapi" __BRAVE_DISABLED__>Brave API__BRAVE_LABEL__</option>
+          </select>
         </div>
       </form>
 
@@ -150,12 +162,13 @@ const PAGE = `<!doctype html>
   </main>
 
   <footer>
-    <p>Powered by <a href="https://docs.searxng.org/">SearXNG</a> on Cloudflare — a privacy-respecting metasearch migration.</p>
+    <p>Powered by <a href="https://docs.searxng.org/">SearXNG</a> on Cloudflare - a privacy-respecting metasearch migration.</p>
   </footer>
 
   <script nonce="__NONCE__">
     (() => {
       const state = {
+        engine: "duckduckgo",
         page: 1,
         query: "",
         token: sessionStorage.getItem("searxng-worker-token") || "",
@@ -167,6 +180,8 @@ const PAGE = `<!doctype html>
       const resultsForm = document.getElementById("results-search");
       const homeQuery = document.getElementById("q");
       const resultsQuery = document.getElementById("q-results");
+      const homeEngine = document.getElementById("engine");
+      const resultsEngine = document.getElementById("engine-results");
       const access = document.getElementById("cloudflare-access");
       const accessForm = document.getElementById("access-form");
       const tokenInput = document.getElementById("token");
@@ -277,9 +292,12 @@ const PAGE = `<!doctype html>
         pagination.hidden = results.length === 0;
       }
 
-      async function search(query, page = 1) {
+      async function search(query, page = 1, engine = homeEngine.value) {
         const normalized = query.trim();
         if (!normalized) return;
+        state.engine = engine;
+        state.page = page;
+        state.query = normalized;
         if (!state.token) {
           showAccess(true);
           showStatus("Add the Worker token to search from this tab.", "error");
@@ -287,18 +305,23 @@ const PAGE = `<!doctype html>
           return;
         }
 
-        state.query = normalized;
-        state.page = page;
         homeQuery.value = normalized;
         resultsQuery.value = normalized;
+        homeEngine.value = engine;
+        resultsEngine.value = engine;
         showResultsView();
         showStatus("Searching providers...");
         urls.replaceChildren();
         pagination.hidden = true;
         resultCount.textContent = "";
 
-        const parameters = new URLSearchParams({ q: normalized, format: "json", pageno: String(page) });
-        history.replaceState(null, "", "/?q=" + encodeURIComponent(normalized) + "&pageno=" + page);
+        const parameters = new URLSearchParams({
+          q: normalized,
+          format: "json",
+          pageno: String(page),
+          engines: engine,
+        });
+        history.replaceState(null, "", "/?" + parameters);
 
         try {
           const response = await fetch("/search?" + parameters, {
@@ -325,27 +348,38 @@ const PAGE = `<!doctype html>
         if (state.token) sessionStorage.setItem("searxng-worker-token", state.token);
         else sessionStorage.removeItem("searxng-worker-token");
         access.hidden = true;
-        if (state.query) search(state.query, state.page);
+        if (state.query) search(state.query, state.page, state.engine);
         else homeQuery.focus();
       });
 
       homeForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        search(homeQuery.value, 1);
+        search(homeQuery.value, 1, homeEngine.value);
       });
       resultsForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        search(resultsQuery.value, 1);
+        search(resultsQuery.value, 1, resultsEngine.value);
       });
-      previousPage.addEventListener("click", () => search(state.query, Math.max(1, state.page - 1)));
-      nextPage.addEventListener("click", () => search(state.query, state.page + 1));
+      previousPage.addEventListener("click", () => search(state.query, Math.max(1, state.page - 1), resultsEngine.value));
+      nextPage.addEventListener("click", () => search(state.query, state.page + 1, resultsEngine.value));
 
       const initial = new URLSearchParams(location.search);
       const initialQuery = initial.get("q") || "";
       const initialPage = Number(initial.get("pageno") || "1");
+      const initialEngine = initial.get("engines") || "duckduckgo";
       homeQuery.value = initialQuery;
       resultsQuery.value = initialQuery;
-      if (initialQuery && state.token) search(initialQuery, Number.isInteger(initialPage) && initialPage > 0 ? initialPage : 1);
+      if (["duckduckgo", "braveapi"].includes(initialEngine)) {
+        homeEngine.value = initialEngine;
+        resultsEngine.value = initialEngine;
+      }
+      if (initialQuery && state.token) {
+        search(
+          initialQuery,
+          Number.isInteger(initialPage) && initialPage > 0 ? initialPage : 1,
+          homeEngine.value,
+        );
+      }
     })();
   </script>
 </body>
@@ -356,9 +390,12 @@ function nonce() {
   return [...bytes].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-export function searchUi() {
+export function searchUi({ braveConfigured = false } = {}) {
   const value = nonce();
-  const body = PAGE.replaceAll("__NONCE__", value);
+  const body = PAGE
+    .replaceAll("__NONCE__", value)
+    .replaceAll("__BRAVE_DISABLED__", braveConfigured ? "" : "disabled")
+    .replaceAll("__BRAVE_LABEL__", braveConfigured ? "" : " (not configured)");
   return new Response(body, {
     headers: {
       "Cache-Control": "no-store",
