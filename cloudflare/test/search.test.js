@@ -6,6 +6,7 @@ import { braveHtmlEndpoint } from "../src/brave-html.js";
 import { duckDuckGoEndpoint } from "../src/duckduckgo.js";
 import { googleCseEndpoint, googleCseTokenEndpoint } from "../src/google-cse.js";
 import { handleRequest } from "../src/index.js";
+import { searchUi } from "../src/ui.js";
 
 const TOKEN = "test-spike-token";
 
@@ -239,6 +240,56 @@ test("search requires the configured bearer token", async () => {
   );
 
   assert.equal(response.status, 401);
+  assert.equal(response.headers.get("WWW-Authenticate"), "Bearer");
+});
+
+test("search rejects an incorrect bearer token", async () => {
+  const response = await handleRequest(
+    new Request("https://searxng.example/search?q=test&format=json", {
+      headers: { Authorization: "Bearer incorrect" },
+    }),
+    { SPIKE_AUTH_TOKEN: TOKEN },
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get("WWW-Authenticate"), "Bearer");
+});
+
+test("browser HTML search runs without a bearer token", async () => {
+  const calls = [];
+  const response = await handleRequest(
+    new Request("https://searxng.example/search?q=test&engines=duckduckgo"),
+    { SPIKE_AUTH_TOKEN: TOKEN },
+    async (url, init) => {
+      calls.push({ method: init.method, url });
+      return new Response(FIRST_PAGE, { status: 200 });
+    },
+    rewriterFactory,
+  );
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /^text\/html/);
+  assert.deepEqual(calls, [{ method: "POST", url: duckDuckGoEndpoint }]);
+  assert.match(body, /MetaMask login/);
+  assert.match(body, /const initialSearch = \{"payload":/);
+  assert.doesNotMatch(body, /Worker token|searxng-worker-token|sessionStorage/);
+});
+
+test("browser HTML search safely embeds provider-controlled text", async () => {
+  const response = searchUi({
+    initialSearch: {
+      payload: {
+        results: [{ title: "</script><img src=x onerror=alert(1)>", url: "https://example.com" }],
+      },
+      status: 200,
+    },
+  });
+  const body = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(body, /\\u003c\/script>\\u003cimg/);
+  assert.doesNotMatch(body, /<\/script><img src=x/);
 });
 
 test("search accepts the Threat Hunter dork and returns SearXNG-compatible results", async () => {
@@ -376,7 +427,7 @@ test("page two uses the continuation token without exposing upstream controls", 
 test("search rejects inputs outside the retained contract before fetching", async () => {
   const cases = [
     ["/search?format=json", 400],
-    ["/search?q=test&format=html", 406],
+    ["/search?q=test&format=csv", 406],
     ["/search?q=test&format=json&pageno=0", 400],
     ["/search?q=test&format=json&engines=private", 400],
     ["/search?q=test&format=json&engines=duckduckgo,private", 400],

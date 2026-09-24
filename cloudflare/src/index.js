@@ -292,13 +292,28 @@ export async function handleRequest(
       return json({ error: "Method not allowed" }, 405, { Allow: "GET" });
     }
 
-    const authError = await authorize(request, env);
-    if (authError) {
-      return authError;
+    const format = url.searchParams.get("format") || "html";
+    if (format === "json") {
+      const authError = await authorize(request, env);
+      if (authError) {
+        return authError;
+      }
+
+      const result = await runSearch(url, env, fetcher, rewriterFactory);
+      return json(result.body, result.status);
     }
 
-    const result = await runSearch(url, env, fetcher, rewriterFactory);
-    return json(result.body, result.status);
+    if (format !== "html") {
+      return json({ error: "Only HTML and JSON search formats are supported" }, 406);
+    }
+
+    const searchUrl = new URL(url);
+    searchUrl.searchParams.set("format", "json");
+    const result = await runSearch(searchUrl, env, fetcher, rewriterFactory);
+    return searchUi({
+      braveApiConfigured: Boolean(env.BRAVE_API_KEY),
+      initialSearch: { payload: result.body, status: result.status },
+    });
   }
 
   return json({ error: "Not found" }, 404);

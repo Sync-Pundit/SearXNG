@@ -4,11 +4,12 @@ This Worker is the Cloudflare-native migration of the SyncPundit SearXNG deploym
 
 ## Routes
 
-- `GET /` opens the familiar SearXNG Simple search and results UI. Cloudflare serves the upstream built theme assets directly, while a thin browser controller calls the provider-neutral JSON contract. The bearer token stays in tab-scoped session storage.
+- `GET /` opens the familiar SearXNG Simple search and results UI. Cloudflare serves the upstream built theme assets directly.
 - `GET /healthz` returns Worker health.
 - `GET /compat` lists the fixed compatibility probes.
 - `POST /compat/run` runs selected probes. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
-- `GET /search?q=...&format=json&pageno=1` runs the configured default engines. DuckDuckGo, Google CSE, and a configured Brave API adapter run concurrently, then their results are deduplicated and scored. Set `engines=duckduckgo`, `engines=google cse`, `engines=brave`, or `engines=braveapi` to choose one engine. A comma-separated list selects several engines. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
+- `GET /search?q=...&pageno=1` renders browser-facing HTML without a bearer token. DuckDuckGo, Google CSE, and a configured Brave API adapter run concurrently, then their results are deduplicated and scored. Set `engines=duckduckgo`, `engines=google cse`, `engines=brave`, or `engines=braveapi` to choose one engine. A comma-separated list selects several engines.
+- `GET /search?q=...&format=json&pageno=1` returns the same result model as JSON and requires `SPIKE_AUTH_TOKEN` as a bearer token. This is the machine-facing endpoint for Threat Hunter.
 
 The probes return status, timing, content type, sampled byte count, and a SHA-256 digest. They do not return or store upstream response content.
 
@@ -20,9 +21,9 @@ When `SERPER_API_KEY` is configured, Serper runs only if every queried Google pr
 
 ## Access boundary
 
-The `workers.dev` hostname is public. `SPIKE_AUTH_TOKEN` prevents anonymous callers from consuming search-provider quota during compatibility testing. The token field in the browser is an acceptance tool, not the planned production credential flow.
+The `workers.dev` hostname and browser HTML search are public. Browser users do not receive, enter, store, or send `SPIKE_AUTH_TOKEN`. The token gates machine-readable JSON results and compatibility-probe execution so only authorized clients can consume those interfaces.
 
-When Threat Hunter moves to Cloudflare, it should call this Worker through a Worker service binding. That internal call does not need the browser token field. Keep the public `/search` route authenticated or disable it when the service binding becomes the production path.
+Threat Hunter must request `format=json` and send `Authorization: Bearer <SPIKE_AUTH_TOKEN>`. A future Worker service binding can keep the same application-level bearer contract unless the trust boundary is deliberately changed.
 
 ## Live deployment
 

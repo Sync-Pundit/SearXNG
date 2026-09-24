@@ -39,13 +39,13 @@ test("root serves the SearXNG Simple shell with a nonce-bound policy", async () 
   assert.match(body, /<form id="search"[^>]*role="search">/);
   assert.match(body, /id="results"/);
   assert.match(body, /article\.className = "result result-default category-general"/);
-  assert.match(body, /id="token"[^>]*type="password"/);
+  assert.doesNotMatch(body, /Worker token|id="token"|searxng-worker-token|sessionStorage/);
   assert.match(body, /id="q"[^>]*maxlength="499"/);
   assert.match(body, /<option value="">All available engines<\/option>/);
   assert.match(body, /value="google cse">Google CSE<\/option>/);
   assert.match(body, /value="brave">Brave<\/option>/);
   assert.match(body, /value="braveapi" disabled>Brave API \(not configured\)/);
-  assert.match(body, /fetch\("\/search\?" \+ parameters/);
+  assert.match(body, /location\.assign\("\/search\?" \+ parameters\)/);
   assert.match(policy, /default-src 'none'/);
   const nonce = body.match(/<script nonce="([a-f0-9]+)">/)?.[1];
   assert.ok(nonce);
