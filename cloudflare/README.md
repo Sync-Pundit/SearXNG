@@ -1,6 +1,6 @@
-# Cloudflare compatibility worker
+# Cloudflare search worker
 
-This Worker is the migration path from SearXNG to a Cloudflare-native search service. It retains the fixed outbound compatibility probes and exposes authenticated SearXNG-compatible search paths backed by DuckDuckGo HTML, Brave HTML, and the Brave Search API.
+This Worker is the Cloudflare-native migration of the SyncPundit SearXNG deployment. It retains the fixed outbound compatibility probes and exposes authenticated SearXNG-compatible search paths backed by DuckDuckGo HTML, Google CSE, Brave HTML, and the Brave Search API. A configured Serper adapter retains the divergence branch's conditional Google fallback.
 
 ## Routes
 
@@ -8,11 +8,15 @@ This Worker is the migration path from SearXNG to a Cloudflare-native search ser
 - `GET /healthz` returns Worker health.
 - `GET /compat` lists the fixed compatibility probes.
 - `POST /compat/run` runs selected probes. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
-- `GET /search?q=...&format=json&pageno=1&engines=duckduckgo` runs a DuckDuckGo HTML search. Set `engines=brave` to parse Brave Search HTML or `engines=braveapi` to use the Brave Search API. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
+- `GET /search?q=...&format=json&pageno=1` runs the configured default engines. DuckDuckGo, Google CSE, and a configured Brave API adapter run concurrently, then their results are deduplicated and scored. Set `engines=duckduckgo`, `engines=google cse`, `engines=brave`, or `engines=braveapi` to choose one engine. A comma-separated list selects several engines. This route requires `SPIKE_AUTH_TOKEN` as a bearer token.
 
 The probes return status, timing, content type, sampled byte count, and a SHA-256 digest. They do not return or store upstream response content.
 
-The search route accepts the query, positive page number, and implemented engine choice used by Threat Hunter. DuckDuckGo remains the default when the engine is omitted. The Worker owns the upstream URL, request method, and headers. Results retain the SearXNG JSON fields consumed by Threat Hunter, including engine provenance and rank score. A provider failure returns HTTP 502 instead of looking like a valid empty result set.
+The search route accepts the query, positive page number, and implemented engine choices used by Threat Hunter. When `engines` is omitted, DuckDuckGo and Google CSE run with Brave API when its server-side key is configured. Brave HTML remains a separate, explicitly selectable engine. The Worker owns the upstream URL, request method, and headers.
+
+Results retain the SearXNG JSON fields consumed by Threat Hunter. Matching URLs from several engines are merged with their engine provenance and positions, then scored using SearXNG's position-based formula. A failed provider is listed in `unresponsive_engines`. The request still succeeds when another selected provider completed, including a valid empty result set. It fails only when every selected provider is unavailable.
+
+When `SERPER_API_KEY` is configured, Serper runs only if every queried Google primary returned no results. It uses 10 results per request so dork queries remain compatible with Serper's retained account constraint. `SERPER_PRIMARY_ENGINES` defaults to `google,google cse`, and `SERPER_MAX_PAGE` defaults to `5`. A Serper failure does not replace or fail results returned by another engine.
 
 ## Access boundary
 
@@ -22,7 +26,7 @@ When Threat Hunter moves to Cloudflare, it should call this Worker through a Wor
 
 ## Live deployment
 
-The compatibility Worker runs at `https://searxng.pundit-workers.workers.dev/`. Cloudflare Workers Builds deploys every push to `cloudflare-deploy`; do not deploy this Worker from a developer machine.
+The Worker runs at `https://searxng.pundit.workers.dev/` on the paid Workers plan. Cloudflare Workers Builds deploys every push to `cloudflare-deploy`; do not deploy this Worker from a developer machine.
 
 ## Run locally
 
@@ -54,7 +58,7 @@ Connect `Sync-Pundit/SearXNG` to the `searxng` Worker with these settings:
 
 Cloudflare owns the dedicated `searxng build token`. Do not copy a local Wrangler OAuth token into GitHub.
 
-Add `SPIKE_AUTH_TOKEN` and `BRAVE_API_KEY` as runtime secrets. Future pushes to `cloudflare-deploy` preserve the secrets and deploy the new Worker version.
+Add `SPIKE_AUTH_TOKEN`, `BRAVE_API_KEY`, and `SERPER_API_KEY` as runtime secrets. `BRAVE_API_KEY` and `SERPER_API_KEY` are optional; their adapters remain inactive when the matching secret is absent. Future pushes to `cloudflare-deploy` preserve the secrets and deploy the new Worker version.
 
 ## Add a probe
 

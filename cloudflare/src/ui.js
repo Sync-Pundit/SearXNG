@@ -114,7 +114,9 @@ const PAGE = `<!doctype html>
         </div>
         <div class="search_filters">
           <select id="engine" name="engines" aria-label="Search engine">
+            <option value="">All available engines</option>
             <option value="duckduckgo">DuckDuckGo</option>
+            <option value="google cse">Google CSE</option>
             <option value="brave">Brave</option>
             <option value="braveapi" __BRAVE_API_DISABLED__>Brave API__BRAVE_API_LABEL__</option>
           </select>
@@ -138,7 +140,9 @@ const PAGE = `<!doctype html>
         </div>
         <div class="search_filters">
           <select id="engine-results" name="engines" aria-label="Search engine">
+            <option value="">All available engines</option>
             <option value="duckduckgo">DuckDuckGo</option>
+            <option value="google cse">Google CSE</option>
             <option value="brave">Brave</option>
             <option value="braveapi" __BRAVE_API_DISABLED__>Brave API__BRAVE_API_LABEL__</option>
           </select>
@@ -170,7 +174,7 @@ const PAGE = `<!doctype html>
   <script nonce="__NONCE__">
     (() => {
       const state = {
-        engine: "duckduckgo",
+        engine: "",
         page: 1,
         query: "",
         token: sessionStorage.getItem("searxng-worker-token") || "",
@@ -285,7 +289,7 @@ const PAGE = `<!doctype html>
         for (const result of results) urls.append(renderResult(result));
 
         if (results.length === 0) {
-          appendText(urls, "p", "No results found. Try another query or provider.", "cf-empty");
+          appendText(urls, "p", "No results found. Try another query or engine.", "cf-empty");
         }
 
         const providers = [...new Set(results.flatMap((result) => result.engines || []))];
@@ -368,10 +372,10 @@ const PAGE = `<!doctype html>
       const initial = new URLSearchParams(location.search);
       const initialQuery = initial.get("q") || "";
       const initialPage = Number(initial.get("pageno") || "1");
-      const initialEngine = initial.get("engines") || "duckduckgo";
+      const initialEngine = initial.get("engines") || "";
       homeQuery.value = initialQuery;
       resultsQuery.value = initialQuery;
-      if (["brave", "braveapi", "duckduckgo"].includes(initialEngine)) {
+      if (["", "brave", "braveapi", "duckduckgo", "google cse"].includes(initialEngine)) {
         homeEngine.value = initialEngine;
         resultsEngine.value = initialEngine;
       }

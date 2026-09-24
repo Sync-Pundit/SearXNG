@@ -41,6 +41,8 @@ test("root serves the SearXNG Simple shell with a nonce-bound policy", async () 
   assert.match(body, /article\.className = "result result-default category-general"/);
   assert.match(body, /id="token"[^>]*type="password"/);
   assert.match(body, /id="q"[^>]*maxlength="499"/);
+  assert.match(body, /<option value="">All available engines<\/option>/);
+  assert.match(body, /value="google cse">Google CSE<\/option>/);
   assert.match(body, /value="brave">Brave<\/option>/);
   assert.match(body, /value="braveapi" disabled>Brave API \(not configured\)/);
   assert.match(body, /fetch\("\/search\?" \+ parameters/);

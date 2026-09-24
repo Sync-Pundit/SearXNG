@@ -4,6 +4,7 @@ import test from "node:test";
 import { braveEndpoint } from "../src/brave.js";
 import { braveHtmlEndpoint } from "../src/brave-html.js";
 import { duckDuckGoEndpoint } from "../src/duckduckgo.js";
+import { googleCseEndpoint, googleCseTokenEndpoint } from "../src/google-cse.js";
 import { handleRequest } from "../src/index.js";
 
 const TOKEN = "test-spike-token";
@@ -223,6 +224,14 @@ class FixtureBraveHTMLRewriter {
 
 const braveRewriterFactory = () => new FixtureBraveHTMLRewriter();
 
+function googleTokenResponse() {
+  return new Response('function earlier(){return {"not":"the token"};} google.search.cse.api123({"cse_token":"cse-token","cselibVersion":"v1"});');
+}
+
+function emptyGoogleResponse() {
+  return new Response("_({\"results\":[]});");
+}
+
 test("search requires the configured bearer token", async () => {
   const response = await handleRequest(
     new Request("https://searxng.example/search?q=test&format=json"),
@@ -235,7 +244,7 @@ test("search requires the configured bearer token", async () => {
 test("search accepts the Threat Hunter dork and returns SearXNG-compatible results", async () => {
   const calls = [];
   const response = await handleRequest(
-    authenticatedRequest('/search?q=site%3Agithub.io+%22metamask%22&format=json&pageno=1'),
+    authenticatedRequest('/search?q=site%3Agithub.io+%22metamask%22&format=json&pageno=1&engines=duckduckgo'),
     { SPIKE_AUTH_TOKEN: TOKEN },
     async (url, init) => {
       calls.push({ body: String(init.body), method: init.method, url });
@@ -268,6 +277,78 @@ test("search accepts the Threat Hunter dork and returns SearXNG-compatible resul
   assert.deepEqual(body.unresponsive_engines, []);
 });
 
+test("default search aggregates configured engines and merges duplicate results", async () => {
+  const calls = [];
+  const response = await handleRequest(
+    authenticatedRequest('/search?q=site%3Agithub.io+%22metamask%22&format=json&pageno=1'),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async (url, init) => {
+      calls.push(String(url));
+      if (String(url).startsWith(googleCseTokenEndpoint)) return googleTokenResponse();
+      if (String(url).startsWith(googleCseEndpoint)) return emptyGoogleResponse();
+      if (String(url).startsWith(braveEndpoint)) {
+        return Response.json({
+          web: {
+            results: [
+              {
+                description: "A longer description supplied by Brave API",
+                title: "A longer direct-result title",
+                url: "http://example.com/direct",
+              },
+            ],
+          },
+        });
+      }
+      return new Response(FIRST_PAGE, { status: 200 });
+    },
+    rewriterFactory,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 4);
+  assert.equal(calls.some((url) => url === duckDuckGoEndpoint), true);
+  assert.equal(calls.some((url) => url.startsWith(braveEndpoint)), true);
+  assert.equal(calls.some((url) => url.startsWith(googleCseTokenEndpoint)), true);
+  assert.equal(calls.some((url) => url.startsWith(googleCseEndpoint)), true);
+  assert.equal(body.results.length, 2);
+  assert.deepEqual(body.results[0], {
+    category: "general",
+    content: "A longer description supplied by Brave API",
+    engine: "duckduckgo",
+    engines: ["duckduckgo", "braveapi"],
+    positions: [2, 1],
+    publishedDate: null,
+    score: 3,
+    template: "default.html",
+    title: "A longer direct-result title",
+    url: "https://example.com/direct",
+  });
+  assert.equal(body.results[1].url, "https://attacker.github.io/metamask-login/");
+  assert.deepEqual(body.unresponsive_engines, []);
+});
+
+test("default search keeps successful results when another engine is unavailable", async () => {
+  const response = await handleRequest(
+    authenticatedRequest("/search?q=wallet&format=json"),
+    { BRAVE_API_KEY: "brave-secret", SPIKE_AUTH_TOKEN: TOKEN },
+    async (url) => {
+      if (String(url).startsWith(googleCseTokenEndpoint)) return googleTokenResponse();
+      if (String(url).startsWith(googleCseEndpoint)) return emptyGoogleResponse();
+      if (String(url).startsWith(braveEndpoint)) {
+        return Response.json({ error: { code: "RATE_LIMITED" } }, { status: 429 });
+      }
+      return new Response(FIRST_PAGE, { status: 200 });
+    },
+    rewriterFactory,
+  );
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.results.length, 2);
+  assert.deepEqual(body.unresponsive_engines, [["braveapi", "rate limited"]]);
+});
+
 test("page two uses the continuation token without exposing upstream controls", async () => {
   const calls = [];
   const response = await handleRequest(
@@ -298,6 +379,7 @@ test("search rejects inputs outside the retained contract before fetching", asyn
     ["/search?q=test&format=html", 406],
     ["/search?q=test&format=json&pageno=0", 400],
     ["/search?q=test&format=json&engines=private", 400],
+    ["/search?q=test&format=json&engines=duckduckgo,private", 400],
     ["/search?q=test&format=json&engines=braveapi&pageno=11", 400],
     [`/search?q=${"x".repeat(500)}&format=json`, 400],
   ];
@@ -523,7 +605,7 @@ test("search accepts only GET", async () => {
 
 test("a provider CAPTCHA is unavailable rather than an empty successful search", async () => {
   const response = await handleRequest(
-    authenticatedRequest("/search?q=test&format=json"),
+    authenticatedRequest("/search?q=test&format=json&engines=duckduckgo"),
     { SPIKE_AUTH_TOKEN: TOKEN },
     async () => new Response('<form id="challenge-form"></form>', { status: 200 }),
     rewriterFactory,

@@ -24,6 +24,7 @@ gh-pages/
 /cloudflare/node_modules/
 /cloudflare/.wrangler/
 /cloudflare/.dev.vars*
+/output/
 
 .idea/
 

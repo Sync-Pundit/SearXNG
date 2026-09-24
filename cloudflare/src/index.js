@@ -1,6 +1,4 @@
-import { BraveError, searchBrave } from "./brave.js";
-import { BraveHtmlError, searchBraveHtml } from "./brave-html.js";
-import { DuckDuckGoError, searchDuckDuckGo } from "./duckduckgo.js";
+import { runSearch } from "./search.js";
 import { searchUi } from "./ui.js";
 
 const SAMPLE_LIMIT_BYTES = 64 * 1024;
@@ -161,50 +159,6 @@ async function parseRunRequest(request) {
   return { names };
 }
 
-function parseSearchRequest(url) {
-  const query = url.searchParams.get("q") || "";
-  if (!query.trim()) {
-    return { error: json({ error: "No query" }, 400) };
-  }
-  if (query.length >= 500) {
-    return { error: json({ error: "Search queries must be shorter than 500 characters" }, 400) };
-  }
-
-  const format = url.searchParams.get("format") || "json";
-  if (format !== "json") {
-    return { error: json({ error: "Only format=json is supported" }, 406) };
-  }
-
-  const rawPage = url.searchParams.get("pageno") || "1";
-  if (!/^[1-9]\d*$/.test(rawPage)) {
-    return { error: json({ error: "pageno must be a positive integer" }, 400) };
-  }
-
-  const engine = url.searchParams.get("engines") || "duckduckgo";
-  if (!new Set(["brave", "braveapi", "duckduckgo"]).has(engine)) {
-    return { error: json({ error: "Unsupported search engine" }, 400) };
-  }
-
-  const page = Number(rawPage);
-  if ((engine === "brave" || engine === "braveapi") && page > 10) {
-    return { error: json({ error: "Brave engines support pages 1 through 10" }, 400) };
-  }
-
-  return { engine, page, query };
-}
-
-function searchResponse(query, results, unresponsiveEngines = []) {
-  return {
-    query,
-    results,
-    answers: [],
-    corrections: [],
-    infoboxes: [],
-    suggestions: [],
-    unresponsive_engines: unresponsiveEngines,
-  };
-}
-
 async function readSample(body, limit) {
   if (!body) {
     return new Uint8Array();
@@ -343,45 +297,8 @@ export async function handleRequest(
       return authError;
     }
 
-    const parsed = parseSearchRequest(url);
-    if (parsed.error) {
-      return parsed.error;
-    }
-
-    if (parsed.engine === "braveapi" && !env.BRAVE_API_KEY) {
-      return json(
-        {
-          error: "Search provider unavailable",
-          ...searchResponse(parsed.query, [], [["braveapi", "not configured"]]),
-        },
-        503,
-      );
-    }
-
-    try {
-      let results;
-      if (parsed.engine === "braveapi") {
-        results = await searchBrave(parsed.query, parsed.page, env.BRAVE_API_KEY, fetcher);
-      } else if (parsed.engine === "brave") {
-        results = await searchBraveHtml(parsed.query, parsed.page, fetcher, rewriterFactory);
-      } else {
-        results = await searchDuckDuckGo(parsed.query, parsed.page, fetcher, rewriterFactory);
-      }
-      return json(searchResponse(parsed.query, results));
-    } catch (error) {
-      const reason = error instanceof DuckDuckGoError
-        || error instanceof BraveError
-        || error instanceof BraveHtmlError
-        ? error.reason
-        : "unexpected error";
-      return json(
-        {
-          error: "Search provider unavailable",
-          ...searchResponse(parsed.query, [], [[parsed.engine, reason]]),
-        },
-        502,
-      );
-    }
+    const result = await runSearch(url, env, fetcher, rewriterFactory);
+    return json(result.body, result.status);
   }
 
   return json({ error: "Not found" }, 404);
