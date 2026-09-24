@@ -3,6 +3,7 @@ const TOKEN_ENDPOINT = "https://www.google.com/cse/cse.js";
 const SEARCH_ENDPOINT = "https://cse.google.com/cse/element/v1";
 const ENGINE_NAME = "google cse";
 const TIMEOUT_MS = 12_000;
+// minimal: isolate-local cache; use Cache API when repeated token fetches become measurable
 const tokenCache = new WeakMap();
 
 export class GoogleCseError extends Error {
