@@ -24,13 +24,15 @@ Optional settings are:
 The API supports paging and time filters.
 """
 
+import os
 import typing as t
 
+from dateutil import parser
 from urllib.parse import urlencode
 
-from searx.engines.brave import parse_video_result
 from searx.exceptions import SearxEngineAPIException
 from searx.result_types import EngineResults
+from searx.utils import html_to_text
 
 if t.TYPE_CHECKING:
     from searx.extended_types import SXNG_Response
@@ -67,6 +69,8 @@ max_page = 10
 
 def setup(_: dict[str, t.Any]) -> bool | None:
     """Initialize the engine."""
+    global api_key  # pylint: disable=global-statement
+    api_key = os.environ.get("BRAVE_API_KEY", api_key)
     if not api_key:
         raise SearxEngineAPIException("No API key provided")
 
@@ -93,6 +97,17 @@ def request(query: str, params: "OnlineParams") -> None:
     params["headers"]["Accept"] = "application/json"
 
 
+def _extract_published_date(published_date_raw: str):
+    """Parse Brave's optional result age without rejecting the result."""
+    if not published_date_raw:
+        return None
+
+    try:
+        return parser.parse(published_date_raw)
+    except parser.ParserError:
+        return None
+
+
 def response(resp: "SXNG_Response") -> EngineResults:
     """Process the API response and return results."""
     data = resp.json()
@@ -100,6 +115,16 @@ def response(resp: "SXNG_Response") -> EngineResults:
     res = EngineResults()
     results_json = (data.get("web") or {}).get("results", [])
     for result in results_json:
-        res.add(parse_video_result(result))
+        thumbnail_data = result.get("thumbnail") or {}
+        thumbnail = "" if thumbnail_data.get("logo") else thumbnail_data.get("src", "")
+        res.add(
+            res.types.MainResult(
+                url=result["url"],
+                title=html_to_text(result.get("title", "")),
+                content=html_to_text(result.get("description", "")),
+                publishedDate=_extract_published_date(result.get("age")),
+                thumbnail=thumbnail,
+            )
+        )
 
     return res

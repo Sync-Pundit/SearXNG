@@ -2,5 +2,6 @@
 
 !container/*.template.*
 !container/entrypoint.sh
+!cloudflare/container/**
 !searx/**
 !requirements*.txt

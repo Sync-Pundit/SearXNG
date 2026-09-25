@@ -2,14 +2,46 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "searxng",
   "main": "src/index.js",
-  "compatibility_date": "2026-09-22",
+  "compatibility_date": "2026-09-24",
   "workers_dev": true,
   "preview_urls": true,
-  "assets": {
-    "directory": "../searx/static/themes/simple",
-    "binding": "ASSETS",
-    "run_worker_first": true
+  "vars": {
+    "SEARXNG_BASE_URL": "https://searxng.pundit.workers.dev/",
+    "SERPER_MAX_PAGE": "5",
+    "SERPER_PRIMARY_ENGINES": "google,google cse"
   },
+  "assets": {
+    "directory": ".assets",
+    "binding": "ASSETS"
+  },
+  "containers": [
+    {
+      "name": "searxng-runtime",
+      "class_name": "SearxngContainer",
+      "image": "./container.Dockerfile",
+      "image_build_context": "..",
+      "instance_type": "basic",
+      "max_instances": 1,
+      "constraints": {
+        "regions": ["AFR"]
+      },
+      "rollout_step_percentage": 100
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SEARXNG_CONTAINER",
+        "class_name": "SearxngContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SearxngContainer"]
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {

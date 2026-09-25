@@ -4,12 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "assets": "node scripts/build-assets.mjs",
+    "precheck": "npm run assets",
     "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "predeploy": "npm run assets",
     "deploy": "wrangler deploy",
+    "predev": "npm run assets",
     "dev": "wrangler dev",
     "test": "node --test test/*.test.js"
   },
   "devDependencies": {
     "wrangler": "4.136.2"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
   }
 }

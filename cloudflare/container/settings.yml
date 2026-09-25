@@ -1,0 +1,81 @@
+# Cloudflare Container overrides. Upstream defaults supply the full engine,
+# category, preference, plugin, and template catalog.
+use_default_settings: true
+
+general:
+  donation_url: https://buymeacoffee.com/sync_pundit
+  contact_url: mailto:searx@syncpundit.io
+
+brand:
+  new_issue_url: https://github.com/Sync-Pundit/searxng/issues/new
+  wiki_url: https://github.com/Sync-Pundit/searxng/wiki
+  issue_url: https://github.com/Sync-Pundit/searxng/issues
+  custom:
+    links:
+      Find Me: https://links.syncpundit.io
+
+server:
+  public_instance: false
+  image_proxy: false
+  method: GET
+
+preferences:
+  lock:
+    - method
+
+search:
+  formats:
+    - html
+    - json
+  suspended_times:
+    SearxEngineCaptcha: 1800
+    cf_SearxEngineCaptcha: 3600
+    recaptcha_SearxEngineCaptcha: 3600
+
+outgoing:
+  request_timeout: 3.0
+  max_request_timeout: 5.0
+
+plugins:
+  searx.plugins.calculator.SXNGPlugin:
+    active: true
+  searx.plugins.infinite_scroll.SXNGPlugin:
+    active: false
+  searx.plugins.hash_plugin.SXNGPlugin:
+    active: true
+  searx.plugins.self_info.SXNGPlugin:
+    active: true
+  searx.plugins.unit_converter.SXNGPlugin:
+    active: true
+  searx.plugins.ahmia_filter.SXNGPlugin:
+    active: true
+  searx.plugins.hostnames.SXNGPlugin:
+    active: true
+  searx.plugins.time_zone.SXNGPlugin:
+    active: true
+  searx.plugins.oa_doi_rewrite.SXNGPlugin:
+    active: false
+  searx.plugins.tor_check.SXNGPlugin:
+    active: false
+  searx.plugins.tracker_url_remover.SXNGPlugin:
+    active: true
+  searx.plugins.serper_fallback.SXNGPlugin:
+    active: true
+
+engines:
+  - name: ahmia
+    inactive: true
+  - name: torch
+    inactive: true
+  - name: wikidata
+    inactive: true
+  - name: braveapi
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: startpage
+    disabled: true
+  - name: bing
+    disabled: true
+  - name: yahoo
+    enable_http2: false
