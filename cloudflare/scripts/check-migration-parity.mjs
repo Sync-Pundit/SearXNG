@@ -49,6 +49,12 @@ requireText(settings, "method: GET", "edge-classifiable search method");
 requireText(settings, "name: braveapi", "Brave API engine");
 requireText(settings, "name: brave", "Brave HTML engine");
 requireText(settings, "name: yahoo", "Yahoo engine override");
+if (settings.includes("disabled:")) {
+  throw new Error("engine availability must use the current inactive setting");
+}
+for (const engine of ["braveapi", "brave"]) {
+  requireText(settings, `name: ${engine}\n    inactive: false`, `${engine} activation`);
+}
 
 const defaultEngines = read("searx/settings.yml");
 for (const engine of ["findborg", "iconify", "xprivo", "braveapi"]) {

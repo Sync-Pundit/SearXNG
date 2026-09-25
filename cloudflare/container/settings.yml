@@ -75,12 +75,12 @@ engines:
   - name: radio browser
     inactive: true
   - name: braveapi
-    disabled: false
+    inactive: false
   - name: brave
-    disabled: false
+    inactive: false
   - name: startpage
-    disabled: true
+    inactive: true
   - name: bing
-    disabled: true
+    inactive: true
   - name: yahoo
     enable_http2: false
