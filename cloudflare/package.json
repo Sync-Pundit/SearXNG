@@ -11,7 +11,8 @@
     "deploy": "wrangler deploy",
     "predev": "npm run assets",
     "dev": "wrangler dev",
-    "test": "node --test test/*.test.js"
+    "parity": "node scripts/check-migration-parity.mjs",
+    "test": "node --test test/*.test.js && npm run parity"
   },
   "devDependencies": {
     "wrangler": "4.136.2"

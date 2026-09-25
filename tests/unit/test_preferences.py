@@ -138,6 +138,28 @@ class TestPreferences(SearxTestCase):
         storage = searx.plugins.PluginStorage()
         self.preferences = Preferences(['simple'], ['general'], {}, storage)
 
+    def test_all_custom_theme_styles_are_valid_preferences(self):
+        choices = tuple(self.preferences.key_value_settings['simple_style'].choices)
+        for style in (
+            'paulgo',
+            'latte',
+            'frappe',
+            'macchiato',
+            'mocha',
+            'kagi',
+            'brave',
+            'moa',
+            'night',
+            'dracula',
+            'gruvbox',
+            'gruvboxmat',
+            'everforest',
+            'evergarden',
+            'nord',
+            'matcha',
+        ):
+            self.assertIn(style, choices)
+
     def test_encode(self):
         url_params = (
             'eJx1Vk1z4zYM_TXxRZNMd7eddg8-pe21nWnvGoiEJEQkofDDtvzrC1qSRdnbQxQTBA'

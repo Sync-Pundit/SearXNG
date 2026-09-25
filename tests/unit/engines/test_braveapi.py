@@ -36,13 +36,15 @@ class BraveApiTest(unittest.TestCase):
         response = mock.Mock()
         response.json.return_value = {
             "web": {
-                "results": [{
-                    "url": "https://example.test/result",
-                    "title": "<strong>Example</strong>",
-                    "description": "A <em>web</em> result",
-                    "age": "2026-09-24T12:00:00Z",
-                    "thumbnail": {"src": "https://example.test/thumb.png", "logo": False},
-                }]
+                "results": [
+                    {
+                        "url": "https://example.test/result",
+                        "title": "<strong>Example</strong>",
+                        "description": "A <em>web</em> result",
+                        "age": "2026-09-24T12:00:00Z",
+                        "thumbnail": {"src": "https://example.test/thumb.png", "logo": False},
+                    }
+                ]
             }
         }
 

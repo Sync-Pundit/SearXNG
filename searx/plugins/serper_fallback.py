@@ -51,9 +51,7 @@ class SXNGPlugin(Plugin):
         self.info = PluginInfo(
             id=self.id,
             name=gettext("Serper fallback"),
-            description=gettext(
-                "Queries Serper only when the primary Google engines return no results."
-            ),
+            description=gettext("Queries Serper only when the primary Google engines return no results."),
             preference_section="general",
         )
 

@@ -116,3 +116,5 @@ Cloudflare owns the dedicated `searxng` build token. Do not copy a local
 Wrangler OAuth token into GitHub.
 
 See [PARITY.md](PARITY.md) for the production acceptance contract.
+See [PRIVAU-COMPATIBILITY.md](PRIVAU-COMPATIBILITY.md) for the feature-by-feature
+decision record behind the additional themes and privacy defaults.

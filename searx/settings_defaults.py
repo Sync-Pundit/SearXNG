@@ -23,7 +23,28 @@ searx_dir = abspath(dirname(__file__))
 logger = logging.getLogger('searx')
 OUTPUT_FORMATS = ['html', 'csv', 'json', 'rss']
 SXNG_LOCALE_TAGS = ['all', 'auto'] + list(l[0] for l in sxng_locales)
-SIMPLE_STYLE = ('auto', 'light', 'dark', 'black')
+SIMPLE_STYLE = (
+    'auto',
+    'light',
+    'dark',
+    'black',
+    'paulgo',
+    'latte',
+    'frappe',
+    'macchiato',
+    'mocha',
+    'kagi',
+    'brave',
+    'moa',
+    'night',
+    'dracula',
+    'gruvbox',
+    'gruvboxmat',
+    'everforest',
+    'evergarden',
+    'nord',
+    'matcha',
+)
 CATEGORIES_AS_TABS: dict[str, dict[str, t.Any]] = {
     'general': {},
     'images': {},

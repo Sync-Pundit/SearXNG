@@ -11,10 +11,7 @@ from searx.plugins.serper_fallback import SXNGPlugin
 
 
 def search_with(primary_results=(), pageno=1, engines=("google cse",)):
-    results = {
-        index: SimpleNamespace(engines=set(provenance))
-        for index, provenance in enumerate(primary_results)
-    }
+    results = {index: SimpleNamespace(engines=set(provenance)) for index, provenance in enumerate(primary_results)}
     return SimpleNamespace(
         search_query=SimpleNamespace(
             query="site:example.test threat",
@@ -51,11 +48,15 @@ class SerperFallbackTest(unittest.TestCase):
         self.plugin._query_serper.assert_not_called()
 
     def test_empty_queried_primary_uses_fallback(self):
-        self.plugin._query_serper = mock.Mock(return_value=[{
-            "url": "https://example.test/result",
-            "title": "Example",
-            "content": "Fallback result",
-        }])
+        self.plugin._query_serper = mock.Mock(
+            return_value=[
+                {
+                    "url": "https://example.test/result",
+                    "title": "Example",
+                    "content": "Fallback result",
+                }
+            ]
+        )
 
         results = self.plugin.post_search(None, search_with())
 

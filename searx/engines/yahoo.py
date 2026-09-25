@@ -7,7 +7,7 @@ named `YBV`, which is cached for 24h before expiring.
 """
 
 import typing as t
-from urllib.parse import unquote, urlencode, urljoin
+from urllib.parse import unquote, urlencode, urljoin, urlsplit
 
 from searx.enginelib import EngineCache
 from searx.network import get  # see https://github.com/searxng/searxng/issues/762
@@ -115,8 +115,13 @@ yahoo_languages = {
 CACHE: EngineCache
 """YBV cookie"""
 
-_YBV_HOPS = 4
+_YBV_HOPS = 6
 """Tracking pixel -> gif -> (optional) geo redirect i.e. au.search.yahoo.com -> 200"""
+
+
+def _ybv_cache_key(url_or_host: str) -> str:
+    host = urlsplit(url_or_host).hostname if "://" in url_or_host else url_or_host
+    return f"YBV:{(host or 'search.yahoo.com').lower()}"
 
 
 def setup(engine_settings: dict[str, t.Any]):
@@ -156,7 +161,8 @@ def request(query: str, params: "OnlineParams") -> None:
         domain = region2domain[parts[-1]]
     logger.debug("domain selected: %s", domain)
     params["url"] = f"https://{domain}/search?{urlencode(url_params)}"
-    if ybv := CACHE.get("YBV"):
+    params["raise_for_httperror"] = False
+    if ybv := CACHE.get(_ybv_cache_key(domain)):
         params["cookies"]["YBV"] = ybv
 
 
@@ -182,25 +188,43 @@ def parse_url(url_string: str) -> str:
 def _yahoo_html(resp: "SXNG_Response") -> "SXNG_Response":
     cookies = dict(resp.search_params["cookies"])
     params = resp.search_params
+    retried_empty_response = False
     for _ in range(_YBV_HOPS):
+        current_host = urlsplit(str(resp.url)).hostname or "search.yahoo.com"
         if ybv := resp.cookies.get("YBV"):
             cookies["YBV"] = ybv
             if ybv.startswith("v0.2"):
-                CACHE.set("YBV", ybv, expire=86400)
+                CACHE.set(_ybv_cache_key(current_host), ybv, expire=86400)
 
-        if resp.status_code == 200:
+        if resp.status_code == 200 and resp.content and resp.content.strip():
             return resp
 
         loc = resp.headers.get("location")
-        if resp.status_code not in (302, 307) or not loc:
+        if resp.status_code in (302, 307) and loc:
+            target = urljoin(str(resp.url), loc)
+        elif resp.status_code == 200 and not retried_empty_response:
+            target = str(resp.url)
+            retried_empty_response = True
+        else:
             return resp
 
-        # request ourselves instead of following it
+        target_host = urlsplit(target).hostname or current_host
+        if target_host != current_host:
+            cookies.pop("YBV", None)
+            if cached_ybv := CACHE.get(_ybv_cache_key(target_host)):
+                cookies["YBV"] = cached_ybv
+
+        # Request ourselves instead of following the redirect. Yahoo sometimes
+        # returns an empty 200 for a reused regional YBV cookie. Host-scoped
+        # cookies and one fresh request recover without poisoning searches from
+        # another locale. A provider 5xx is returned immediately so a broken
+        # Yahoo edge cannot consume the entire metasearch timeout.
         resp = get(
-            urljoin(resp.url, loc),
-            cookies=cookies,
-            headers=params["headers"],
+            target,
+            cookies=dict(cookies),
+            headers={**params["headers"], "Cache-Control": "no-cache"},
             allow_redirects=False,
+            raise_for_httperror=False,
         )
         resp.search_params = params
 

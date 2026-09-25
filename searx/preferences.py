@@ -25,6 +25,7 @@ from searx.locales import LOCALE_NAMES
 from searx.webutils import VALID_LANGUAGE_CODE
 
 from ._settings import SettingsPref
+from .settings_defaults import SIMPLE_STYLE
 
 COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 5  # 5 years
 DOI_RESOLVERS = list(settings['doi_resolvers'])
@@ -465,7 +466,7 @@ class Preferences:
             'simple_style': EnumStringSetting(
                 get_setting("ui.theme_args.simple_style"),
                 locked="simple_style" in self.cfg.lock,
-                choices=["", "auto", "light", "dark", "black"],
+                choices=("", *SIMPLE_STYLE),
             ),
             'center_alignment': BooleanSetting(
                 get_setting("ui.center_alignment"),

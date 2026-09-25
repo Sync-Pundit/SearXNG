@@ -16,7 +16,10 @@ brand:
 
 server:
   public_instance: false
-  image_proxy: false
+  # Keep result thumbnails and rich suggestion icons off the user's network.
+  # Cloudflare fetches them from the Container, so providers see Cloudflare
+  # egress rather than the analyst's address.
+  image_proxy: true
   method: GET
 
 preferences:
@@ -68,6 +71,8 @@ engines:
   - name: torch
     inactive: true
   - name: wikidata
+    inactive: true
+  - name: radio browser
     inactive: true
   - name: braveapi
     disabled: false
