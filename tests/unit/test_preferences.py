@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# pylint: disable=missing-module-docstring,disable=missing-class-docstring,invalid-name
+# pylint: disable=missing-module-docstring,disable=missing-class-docstring,invalid-name,too-many-public-methods
+
+from base64 import urlsafe_b64encode
+from zlib import compress
 
 import flask
 from mock import Mock
@@ -8,6 +11,7 @@ from searx import favicons
 from searx.locales import locales_initialize
 from searx.preferences import (
     Setting,
+    SecretSetting,
     EnumStringSetting,
     MapSetting,
     SearchLanguageSetting,
@@ -26,6 +30,45 @@ favicons.init()
 
 
 class TestSettings(SearxTestCase):
+
+    def test_secret_setting_rejects_invalid_values(self):
+        setting = SecretSetting('')
+        with self.assertRaises(ValidationException):
+            setting.parse('x' * 513)
+        with self.assertRaises(ValidationException):
+            setting.parse('line\nbreak')
+
+    def test_secret_setting_uses_hardened_cookie(self):
+        response = flask.Response()
+        setting = SecretSetting('browser-key')
+
+        setting.save('provider_api_key', response)
+
+        cookie = response.headers['Set-Cookie']
+        self.assertIn('provider_api_key=browser-key', cookie)
+        self.assertIn('Secure', cookie)
+        self.assertIn('HttpOnly', cookie)
+        self.assertIn('SameSite=Lax', cookie)
+
+    def test_empty_secret_setting_deletes_cookie(self):
+        response = flask.Response()
+
+        SecretSetting('').save('provider_api_key', response)
+
+        cookie = response.headers['Set-Cookie']
+        self.assertIn('provider_api_key=', cookie)
+        self.assertIn('Expires=Thu, 01 Jan 1970', cookie)
+        self.assertIn('Secure', cookie)
+        self.assertIn('HttpOnly', cookie)
+
+    def test_blank_secret_form_preserves_until_explicitly_cleared(self):
+        setting = SecretSetting('saved-key')
+
+        setting.parse_form('')
+        self.assertEqual(setting.get_value(), 'saved-key')
+
+        setting.parse_form('', clear=True)
+        self.assertEqual(setting.get_value(), '')
 
     # map settings
 
@@ -159,6 +202,30 @@ class TestPreferences(SearxTestCase):
             'matcha',
         ):
             self.assertIn(style, choices)
+
+    def test_secret_settings_are_not_exported_in_preference_urls(self):
+        self.preferences.key_value_settings['serper_api_key'].parse('do-not-share')
+        encoded = self.preferences.get_as_url_params()
+        restored = Preferences(['simple'], ['general'], {}, searx.plugins.PluginStorage())
+
+        restored.parse_encoded_data(encoded)
+
+        self.assertEqual(restored.get_value('serper_api_key'), '')
+
+    def test_encoded_preferences_cannot_set_secret_values(self):
+        self.preferences.key_value_settings['serper_api_key'].parse('keep-this')
+        encoded = urlsafe_b64encode(compress(b'serper_api_key=replace-this')).decode()
+
+        self.preferences.parse_encoded_data(encoded)
+
+        self.assertEqual(self.preferences.get_value('serper_api_key'), 'keep-this')
+
+    def test_only_cookie_parsing_can_load_secret_values(self):
+        self.preferences.parse_dict({'serper_api_key': 'query-key'})
+        self.assertEqual(self.preferences.get_value('serper_api_key'), '')
+
+        self.preferences.parse_dict({'serper_api_key': 'cookie-key'}, include_secrets=True)
+        self.assertEqual(self.preferences.get_value('serper_api_key'), 'cookie-key')
 
     def test_encode(self):
         url_params = (

@@ -80,6 +80,34 @@ class StringSetting(Setting):
     """Setting of plain string values"""
 
 
+class SecretSetting(StringSetting):
+    """Sensitive string stored in a hardened cookie and omitted from preference URLs."""
+
+    def parse(self, data: str):
+        if len(data) > 512 or any(ord(char) < 32 or ord(char) == 127 for char in data):
+            raise ValidationException("Invalid secret value")
+        self.value = data
+
+    def parse_form(self, data: str, clear: bool = False):
+        if clear:
+            self.value = ""
+        elif data:
+            self.parse(data)
+
+    def save(self, name: str, resp: flask.Response):
+        if self.value:
+            resp.set_cookie(
+                name,
+                self.value,
+                max_age=COOKIE_MAX_AGE,
+                secure=True,
+                httponly=True,
+                samesite="Lax",
+            )
+        else:
+            resp.delete_cookie(name, secure=True, httponly=True, samesite="Lax")
+
+
 class EnumStringSetting(Setting):
     """Setting of a value which can only come from the given choices"""
 
@@ -488,6 +516,8 @@ class Preferences:
                 get_setting("ui.url_formatting"),
                 choices=["pretty", "full", "host"],
             ),
+            'serper_api_key': SecretSetting(""),
+            'brave_api_key': SecretSetting(""),
         }
 
         self.engines = EnginesSetting('engines', engines=engines.values())
@@ -499,7 +529,7 @@ class Preferences:
         """Return preferences as URL parameters"""
         settings_kv = {}
         for k, v in self.key_value_settings.items():
-            if v.locked:
+            if v.locked or isinstance(v, SecretSetting):
                 continue
             if isinstance(v, MultipleChoiceSetting):
                 settings_kv[k] = ','.join(v.get_value())
@@ -522,15 +552,16 @@ class Preferences:
         dict_data = {}
         for x, y in parse_qs(bin_data.decode('ascii'), keep_blank_values=True).items():
             dict_data[x] = y[0]
-        self.parse_dict(dict_data)
+        self.parse_dict(dict_data, include_secrets=False)
 
-    def parse_dict(self, input_data: dict[str, str]):
+    def parse_dict(self, input_data: dict[str, str], include_secrets: bool = False):
         """parse preferences from request (``flask.request.form``)"""
         for user_setting_name, user_setting in input_data.items():
             if user_setting_name in self.key_value_settings:
-                if self.key_value_settings[user_setting_name].locked:
+                setting = self.key_value_settings[user_setting_name]
+                if setting.locked or (isinstance(setting, SecretSetting) and not include_secrets):
                     continue
-                self.key_value_settings[user_setting_name].parse(user_setting)
+                setting.parse(user_setting)
             elif user_setting_name == 'disabled_engines':
                 self.engines.parse_cookie(input_data.get('disabled_engines', ''), input_data.get('enabled_engines', ''))
             elif user_setting_name == 'disabled_plugins':
@@ -552,7 +583,11 @@ class Preferences:
 
         for user_setting_name, user_setting in input_data.items():
             if user_setting_name in self.key_value_settings:
-                self.key_value_settings[user_setting_name].parse(user_setting)
+                setting = self.key_value_settings[user_setting_name]
+                if isinstance(setting, SecretSetting):
+                    setting.parse_form(user_setting, input_data.get(f"clear_{user_setting_name}") == "on")
+                else:
+                    setting.parse(user_setting)
             elif user_setting_name.startswith('engine_'):
                 disabled_engines.append(user_setting_name)
             elif user_setting_name.startswith('category_'):

@@ -75,12 +75,29 @@ engines:
   - name: radio browser
     inactive: true
   - name: braveapi
-    inactive: false
+    inactive: true
   - name: brave
+    inactive: false
+  - name: dogpile
+    inactive: false
+    disabled: true
+  - name: dogpile images
+    inactive: false
+    disabled: true
+  - name: duckduckgo
+    inactive: false
+  - name: google
+    inactive: false
+  - name: google cse
+    inactive: false
+  - name: wikipedia
+    inactive: false
+  - name: yandex
     inactive: false
   - name: startpage
     inactive: true
   - name: bing
     inactive: true
   - name: yahoo
+    inactive: false
     enable_http2: false

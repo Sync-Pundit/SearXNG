@@ -187,6 +187,16 @@ class ViewsTestCase(SearxTestCase):  # pylint: disable=too-many-public-methods
         self.assertIn(b'<div id="categories_container">', result.data)
         self.assertIn(b'<legend id="pref_ui_locale">Interface language</legend>', result.data)
 
+    def test_preferences_redacts_saved_api_keys(self):
+        self.client.set_cookie('serper_api_key', 'browser-secret')
+
+        result = self.client.get('/preferences')
+
+        self.assertEqual(result.status_code, 200)
+        self.assertIn(b'<td>[redacted]</td>', result.data)
+        self.assertIn(b'Clear saved key', result.data)
+        self.assertNotIn(b'browser-secret', result.data)
+
     def test_browser_locale(self):
         result = self.client.get('/preferences', headers={'Accept-Language': 'zh-tw;q=0.8'})
         self.assertEqual(result.status_code, 200)

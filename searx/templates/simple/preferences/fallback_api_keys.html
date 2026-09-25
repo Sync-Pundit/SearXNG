@@ -1,0 +1,26 @@
+<fieldset>
+  <legend>{{- _('Optional Serper API key') -}}</legend>
+  <div class="value">
+    <input type="password" id="serper_api_key" name="serper_api_key" value="" autocomplete="new-password"
+           placeholder="{{- _('Instance default') -}}">
+    {%- if preferences.get_value('serper_api_key') -%}
+      <label><input type="checkbox" name="clear_serper_api_key"> {{- _('Clear saved key') -}}</label>
+    {%- endif -%}
+  </div>
+  <div class="description">
+    {{- _('Used only after the selected primary engines return no results. Leave blank to keep a saved browser key; a browser key overrides the instance default.') -}}
+  </div>
+</fieldset>
+<fieldset>
+  <legend>{{- _('Optional Brave Search API key') -}}</legend>
+  <div class="value">
+    <input type="password" id="brave_api_key" name="brave_api_key" value="" autocomplete="new-password"
+           placeholder="{{- _('Instance default') -}}">
+    {%- if preferences.get_value('brave_api_key') -%}
+      <label><input type="checkbox" name="clear_brave_api_key"> {{- _('Clear saved key') -}}</label>
+    {%- endif -%}
+  </div>
+  <div class="description">
+    {{- _('Used only when Serper is unavailable or empty. Keys are stored in Secure, HttpOnly cookies and excluded from shareable preference URLs. Dogpile does not require your API key.') -}}
+  </div>
+</fieldset>

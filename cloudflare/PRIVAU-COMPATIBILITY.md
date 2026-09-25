@@ -10,6 +10,12 @@ discard upstream history and Cloudflare-specific controls.
   SearXNG stylesheet and exposed through the native Preferences page.
 - The retained fork's additional public engine implementations remain in the
   catalog: Findborg, Iconify, Xprivo, and Brave API.
+- Dogpile general and image verticals are available as opt-ins, matching
+  PrivAU's configuration. Dogpile obtains and caches its own short-lived
+  provider token. It stays off by default because Dogpile may issue an AWS WAF
+  challenge to some egress locations.
+- Yahoo, Yandex, Wikipedia, DuckDuckGo, Brave HTML, Google CSE, and Google are
+  explicit general-search defaults for the Cloudflare deployment.
 - Image proxying is enabled so result thumbnails are fetched through the
   Cloudflare-hosted service instead of from the user's browser.
 - Yahoo's regional validation cookie is isolated by hostname. One empty
@@ -20,7 +26,10 @@ discard upstream history and Cloudflare-specific controls.
 
 - Browser search remains public. Only JSON output requires the dedicated
   Worker bearer token.
-- Brave HTML and Brave API remain separate engines.
+- Brave HTML remains a selectable native engine. Brave API stays a separate
+  implementation but is used only as the second API fallback after Serper.
+- Users can optionally override the instance Serper and Brave API keys from
+  Preferences without exposing those keys in shareable preference URLs.
 - Cloudflare chooses Container placement. No geographic region is forced.
 - Cloudflare Workers Static Assets serves the compiled theme files before the
   Worker or Container runs.

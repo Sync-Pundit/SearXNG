@@ -45,13 +45,22 @@ while the process starts.
 
 Container secrets are passed as environment variables:
 
-- `BRAVE_API_KEY` enables the separate `braveapi` engine.
-- `SERPER_API_KEY` enables the conditional Serper fallback.
+- `SERPER_API_KEY` is the default key for the first API fallback.
+- `BRAVE_API_KEY` is the default key for the second API fallback.
 - `SEARXNG_SECRET` signs SearXNG preferences.
 
-`brave` remains the HTML engine and `braveapi` remains the official API engine.
-They are separate, independently selectable engines and both are enabled in
-the default general search. They must not be renamed or merged.
+`brave` remains the selectable HTML engine. `braveapi` remains a distinct
+implementation in the source catalog, but is inactive as a direct engine. The
+fallback plugin queries Serper first and Brave Search API only when Serper is
+unavailable or empty. It never spends either provider's quota when a configured
+primary engine returned a result.
+
+Users can optionally save their own Serper and Brave Search API keys in
+Preferences. Browser keys override the corresponding instance defaults. They
+are stored in Secure, HttpOnly, SameSite cookies and are excluded from
+shareable preference URLs. The Cookies preference panel shows their names with
+redacted values. Dogpile is a separate native engine and obtains its own
+short-lived Dogpile token; users do not supply one.
 
 ## Static delivery
 

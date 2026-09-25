@@ -33,8 +33,9 @@ it is good at:
 | Preferences | Native SearXNG preferences | Language, SafeSearch, theme, plugins, and engine controls render and persist |
 | Categories | Native SearXNG catalog | General, images, videos, news, map, music, IT, science, files, and social media are present |
 | Engines | Native engine catalog plus retained fork changes | Engine preferences and bangs use SearXNG behavior |
-| Brave | Distinct `brave` HTML and `braveapi` API engines | Each can be selected independently |
-| Serper | Retained conditional post-search plugin | Runs only after a queried Google primary returns no result |
+| Brave | Selectable `brave` HTML engine plus inactive `braveapi` implementation | HTML is selectable; API access is fallback-only |
+| API fallbacks | Serper followed by Brave Search API | Run sequentially only after a queried primary returns no result; browser keys override instance keys |
+| Dogpile | Native general and image engines from the PrivAU configuration | Both are selectable opt-ins and Dogpile manages its own short-lived token |
 | Result types | Native SearXNG templates and models | Web, image, video, answer, infobox, suggestion, and download behavior stay upstream-owned |
 | Plugins | Retained production plugin configuration | Calculator, hash, self-info, units, hostname, timezone, and tracker cleanup remain available |
 | Static files | Asset-first Cloudflare delivery | Static requests bypass Worker/Container and carry cache headers |
@@ -56,7 +57,7 @@ The migration replaces those paths:
 - SearXNG queries providers concurrently.
 - The deployment request timeout is 3 seconds and the hard maximum is 5
   seconds.
-- The Serper fallback has its own 3 second ceiling and failure is non-fatal.
+- Each API fallback has its own 3 second ceiling and failure is non-fatal.
 - `Server-Timing` separates edge forwarding time from application work.
 - The single analyst Container stays warm for 24 hours after use.
 
@@ -79,6 +80,8 @@ The migration is ready for a branch deployment only when all of these pass:
    policy.
 7. Threat Hunter supplies `SEARXNG_AUTH_TOKEN`; it must not rely on the old
    unauthenticated JSON endpoint.
+8. API keys saved in Preferences use hardened cookies and never appear in a
+   shareable preference URL.
 
 Do not mark a blank, unavailable, or timed-out provider as an empty successful
 search. Preserve SearXNG's provider failure evidence and partial-result

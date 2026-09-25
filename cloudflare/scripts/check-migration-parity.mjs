@@ -49,11 +49,24 @@ requireText(settings, "method: GET", "edge-classifiable search method");
 requireText(settings, "name: braveapi", "Brave API engine");
 requireText(settings, "name: brave", "Brave HTML engine");
 requireText(settings, "name: yahoo", "Yahoo engine override");
-if (settings.includes("disabled:")) {
-  throw new Error("engine availability must use the current inactive setting");
-}
-for (const engine of ["braveapi", "brave"]) {
+requireText(settings, "name: braveapi\n    inactive: true", "Brave API direct-engine denial");
+for (const engine of [
+  "brave",
+  "duckduckgo",
+  "google",
+  "google cse",
+  "wikipedia",
+  "yandex",
+  "yahoo",
+]) {
   requireText(settings, `name: ${engine}\n    inactive: false`, `${engine} activation`);
+}
+for (const engine of ["dogpile", "dogpile images"]) {
+  requireText(
+    settings,
+    `name: ${engine}\n    inactive: false\n    disabled: true`,
+    `${engine} opt-in availability`,
+  );
 }
 
 const defaultEngines = read("searx/settings.yml");
@@ -63,8 +76,17 @@ for (const engine of ["findborg", "iconify", "xprivo", "braveapi"]) {
 
 const worker = read("cloudflare/src/index.js");
 requireText(worker, "SEARXNG_SECRET", "Container session secret binding");
+requireText(worker, "BRAVE_API_KEY", "Brave API fallback secret binding");
+requireText(worker, "SERPER_API_KEY", "Serper fallback secret binding");
 const router = read("cloudflare/src/router.js");
 requireText(router, "SEARXNG_AUTH_TOKEN", "machine JSON bearer gate");
+
+const fallbackPlugin = read("searx/plugins/serper_fallback.py");
+requireText(fallbackPlugin, "serper_api_key", "per-browser Serper key override");
+requireText(fallbackPlugin, "brave_api_key", "per-browser Brave key override");
+const preferences = read("searx/preferences.py");
+requireText(preferences, "class SecretSetting", "hardened API key preference");
+requireText(preferences, "isinstance(v, SecretSetting)", "secret preference URL exclusion");
 
 const wrangler = read("cloudflare/wrangler.jsonc");
 if (/constraints|regions/.test(wrangler)) {

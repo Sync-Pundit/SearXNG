@@ -92,6 +92,7 @@ from searx.plugins.oa_doi_rewrite import get_doi_resolver
 from searx.preferences import (
     Preferences,
     ClientPref,
+    SecretSetting,
     ValidationException,
 )
 import searx.answerers
@@ -394,7 +395,12 @@ def render(template_name: str, **kwargs):
 
     # values from the HTTP requests
     kwargs['endpoint'] = 'results' if 'q' in kwargs else sxng_request.endpoint
-    kwargs['cookies'] = sxng_request.cookies
+    kwargs['cookies'] = {
+        name: '[redacted]'
+        if isinstance(sxng_request.preferences.key_value_settings.get(name), SecretSetting)
+        else value
+        for name, value in sxng_request.cookies.items()
+    }
     kwargs['errors'] = sxng_request.errors
     kwargs['link_token'] = link_token.get_token()
 
@@ -471,7 +477,7 @@ def pre_request():
     sxng_request.preferences = preferences  # pylint: disable=assigning-non-slot
 
     try:
-        preferences.parse_dict(sxng_request.cookies)
+        preferences.parse_dict(sxng_request.cookies, include_secrets=True)
 
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(e, exc_info=True)
