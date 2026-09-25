@@ -35,11 +35,13 @@ receives `X-Real-IP` only from Cloudflare's `CF-Connecting-IP` header.
 
 ## Runtime
 
-The `SearxngContainer` Durable Object owns one `basic` Container in Cloudflare's
-Africa region. It stays warm for 24 hours after traffic to avoid repeated cold
-starts during normal analyst use. Cloudflare may still restart or reschedule a
-Container, so the Worker returns a retryable `503` with `Retry-After: 2` while
-the process starts.
+The `SearxngContainer` Durable Object owns one named `basic` Container and does
+not impose a region constraint. Cloudflare selects its location. The Worker and
+static assets remain edge-distributed, but this single Container is not cloned
+into every user's nearest region. It stays warm for 24 hours after traffic to
+avoid repeated cold starts during normal use. Cloudflare may still restart or
+reschedule it, so the Worker returns a retryable `503` with `Retry-After: 2`
+while the process starts.
 
 Container secrets are passed as environment variables:
 
