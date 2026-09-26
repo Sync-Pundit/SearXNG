@@ -29,14 +29,17 @@ export class SearxngContainer extends Container {
     return this.containerFetch(request);
   }
 
-  async probeProviders() {
+  async probeProviders(envVars) {
     if (!this.ctx.container.running) {
       await this.start();
     }
-    const process = await this.ctx.container.exec([
-      "/usr/local/searxng/.venv/bin/python",
-      "/usr/local/searxng/provider_probe.py",
-    ]);
+    const process = await this.ctx.container.exec(
+      [
+        "/usr/local/searxng/.venv/bin/python",
+        "/usr/local/searxng/provider_probe.py",
+      ],
+      { env: envVars },
+    );
     const output = await process.output();
     if (output.exitCode !== 0) {
       throw new Error(`Provider acceptance probe exited with ${output.exitCode}`);
@@ -54,7 +57,12 @@ export default {
       return new Response(null, { status: 204 });
     }
     if (pathname === "/__provider-acceptance-2e2d277b7") {
-      const results = await container.probeProviders();
+      const envVars = containerEnv(workerEnv);
+      const results = await container.probeProviders(envVars);
+      results.worker = {
+        braveConfigured: Boolean(workerEnv.BRAVE_API_KEY),
+        serperConfigured: Boolean(workerEnv.SERPER_API_KEY),
+      };
       console.log(JSON.stringify({ event: "provider_acceptance", ...results }));
       return new Response(JSON.stringify(results), {
         headers: {
