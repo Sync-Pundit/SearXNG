@@ -25,27 +25,28 @@ export class SearxngContainer extends Container {
     }));
   }
 
-  async onStart() {
-    try {
-      const process = await this.ctx.container.exec([
-        "/usr/local/searxng/.venv/bin/python",
-        "/usr/local/searxng/provider_probe.py",
-      ]);
-      const output = await new Response(process.stdout).text();
-      console.log(JSON.stringify({
-        event: "provider_acceptance",
-        ...JSON.parse(output),
-      }));
-    } catch (caught) {
-      console.error("Provider acceptance probe failed", caught);
-    }
+  async probeProviders() {
+    const process = await this.ctx.container.exec([
+      "/usr/local/searxng/.venv/bin/python",
+      "/usr/local/searxng/provider_probe.py",
+    ]);
+    return JSON.parse(await new Response(process.stdout).text());
   }
 }
 
 export default {
-  fetch(request, workerEnv) {
-    return routeRequest(request, workerEnv, () => (
-      getContainer(workerEnv.SEARXNG_CONTAINER, "primary")
-    ));
+  async fetch(request, workerEnv) {
+    const container = getContainer(workerEnv.SEARXNG_CONTAINER, "primary");
+    if (new URL(request.url).pathname === "/__provider-acceptance-2e2d277b7") {
+      const results = await container.probeProviders();
+      console.log(JSON.stringify({ event: "provider_acceptance", ...results }));
+      return new Response(JSON.stringify(results), {
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      });
+    }
+    return routeRequest(request, workerEnv, () => container);
   },
 };
