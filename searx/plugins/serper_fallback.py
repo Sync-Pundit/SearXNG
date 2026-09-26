@@ -46,6 +46,11 @@ def _primary_engines() -> set[str]:
     return {name.strip().lower() for name in raw.split(",") if name.strip()}
 
 
+def _provider_endpoint(provider: str, public_endpoint: str) -> str:
+    proxy_base = os.environ.get("FALLBACK_PROXY_BASE", "").rstrip("/")
+    return f"{proxy_base}/{provider}" if proxy_base else public_endpoint
+
+
 class SXNGPlugin(Plugin):
     """Add paid API results only when the queried primary providers were empty."""
 
@@ -124,7 +129,7 @@ class SXNGPlugin(Plugin):
 
         try:
             response = network.post(
-                SERPER_ENDPOINT,
+                _provider_endpoint("serper", SERPER_ENDPOINT),
                 json=payload,
                 headers={
                     "X-API-KEY": api_key,
@@ -167,7 +172,7 @@ class SXNGPlugin(Plugin):
 
         try:
             response = network.get(
-                f"{BRAVE_ENDPOINT}?{urlencode(search_args)}",
+                f"{_provider_endpoint('brave', BRAVE_ENDPOINT)}?{urlencode(search_args)}",
                 headers={
                     "X-Subscription-Token": api_key,
                     "Accept": "application/json",

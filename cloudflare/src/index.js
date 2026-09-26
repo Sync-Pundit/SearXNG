@@ -1,6 +1,7 @@
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 
+import { proxyFallbackProvider } from "./fallback-proxy.js";
 import { routeRequest } from "./router.js";
 
 // Retain the proxy entrypoint for Durable Objects that were previously
@@ -16,6 +17,7 @@ export class SearxngContainer extends Container {
   sleepAfter = "24h";
   envVars = {
     BRAVE_API_KEY: env.BRAVE_API_KEY || "",
+    FALLBACK_PROXY_BASE: "http://api-fallback.internal",
     SEARXNG_BASE_URL: env.SEARXNG_BASE_URL || "https://searxng.pundit.workers.dev/",
     SEARXNG_SECRET: env.SEARXNG_SECRET || "",
     SERPER_API_KEY: env.SERPER_API_KEY || "",
@@ -23,6 +25,10 @@ export class SearxngContainer extends Container {
     SERPER_PRIMARY_ENGINES: env.SERPER_PRIMARY_ENGINES || "google,google cse,dogpile,dogpile images,yahoo",
   };
 }
+
+SearxngContainer.outboundByHost = {
+  "api-fallback.internal": proxyFallbackProvider,
+};
 
 export default {
   fetch(request, workerEnv) {

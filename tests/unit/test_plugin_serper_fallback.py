@@ -88,7 +88,7 @@ class ApiFallbackTest(unittest.TestCase):
     def test_serper_engine_error_returns_empty_results(self, post):
         post.side_effect = SearxEngineAccessDeniedException(suspended_time=0)
 
-        results = self.plugin._query_serper("blocked", 1, "serper")
+        results = SXNGPlugin._query_serper(self.plugin, "blocked", 1, "serper")
 
         self.assertEqual(results, [])
 
@@ -96,9 +96,37 @@ class ApiFallbackTest(unittest.TestCase):
     def test_brave_engine_error_returns_empty_results(self, get):
         get.side_effect = SearxEngineAccessDeniedException(suspended_time=0)
 
-        results = self.plugin._query_brave("blocked", 1, "brave")
+        results = SXNGPlugin._query_brave(self.plugin, "blocked", 1, "brave")
 
         self.assertEqual(results, [])
+
+    @mock.patch("searx.plugins.serper_fallback.network.post")
+    def test_cloudflare_serper_proxy(self, post):
+        post.return_value = mock.Mock(json=lambda: {"organic": []})
+        post.return_value.raise_for_status.return_value = None
+
+        with mock.patch.dict(
+            os.environ,
+            {"FALLBACK_PROXY_BASE": "http://api-fallback.internal"},
+            clear=False,
+        ):
+            SXNGPlugin._query_serper(self.plugin, "proxied", 1, "serper")
+
+        self.assertEqual(post.call_args.args[0], "http://api-fallback.internal/serper")
+
+    @mock.patch("searx.plugins.serper_fallback.network.get")
+    def test_cloudflare_brave_proxy(self, get):
+        get.return_value = mock.Mock(json=lambda: {"web": {"results": []}})
+        get.return_value.raise_for_status.return_value = None
+
+        with mock.patch.dict(
+            os.environ,
+            {"FALLBACK_PROXY_BASE": "http://api-fallback.internal"},
+            clear=False,
+        ):
+            SXNGPlugin._query_brave(self.plugin, "proxied", 1, "brave")
+
+        self.assertTrue(get.call_args.args[0].startswith("http://api-fallback.internal/brave?"))
 
     def test_browser_serper_key_overrides_instance_key(self):
         self.plugin._query_serper.return_value = [

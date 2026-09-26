@@ -79,6 +79,10 @@ requireText(worker, "SEARXNG_SECRET", "Container session secret binding");
 requireText(worker, "BRAVE_API_KEY", "Brave API fallback secret binding");
 requireText(worker, "SERPER_API_KEY", "Serper fallback secret binding");
 requireText(worker, "dogpile,dogpile images", "Dogpile API fallback gate");
+requireText(worker, '"api-fallback.internal": proxyFallbackProvider', "Worker-side API fallback egress");
+if (worker.includes("interceptHttps = true")) {
+  throw new Error("Official API fallback proxy must not enable global HTTPS interception");
+}
 const yahoo = read("searx/engines/yahoo.py");
 requireText(yahoo, 'CACHE.get("YBV")', "Yahoo parent-domain cookie cache");
 requireText(yahoo, '"search.yahoo.com"', "Yahoo global-edge recovery");
