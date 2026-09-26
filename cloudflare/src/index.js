@@ -11,19 +11,10 @@ export { ContainerProxy } from "@cloudflare/containers";
 export class SearxngContainer extends Container {
   defaultPort = 8080;
   enableInternet = true;
+  envVars = containerEnv(this.env);
   pingEndpoint = "container/healthz";
   requiredPorts = [8080];
   sleepAfter = "24h";
-
-  constructor(ctx, workerEnv) {
-    super(ctx, workerEnv);
-    this.envVars = containerEnv(workerEnv);
-    console.log(JSON.stringify({
-      event: "container_environment",
-      braveConfigured: Boolean(this.envVars.BRAVE_API_KEY),
-      serperConfigured: Boolean(this.envVars.SERPER_API_KEY),
-    }));
-  }
 
   async probeProviders() {
     if (!this.ctx.container.running) {

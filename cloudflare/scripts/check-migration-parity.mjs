@@ -75,7 +75,7 @@ for (const engine of ["findborg", "iconify", "xprivo", "braveapi"]) {
 }
 
 const worker = read("cloudflare/src/index.js");
-requireText(worker, "containerEnv(workerEnv)", "explicit Container environment binding");
+requireText(worker, "envVars = containerEnv(this.env)", "native Container environment binding");
 if (worker.includes("interceptHttps = true")) {
   throw new Error("Official API fallback proxy must not enable global HTTPS interception");
 }
