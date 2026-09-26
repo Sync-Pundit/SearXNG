@@ -1,4 +1,6 @@
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
+const BRAVE_KEY_HEADER = "X-Searxng-Internal-Brave-Key";
+const SERPER_KEY_HEADER = "X-Searxng-Internal-Serper-Key";
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -58,11 +60,15 @@ function isJsonSearch(request, url) {
   )) || false;
 }
 
-function proxiedRequest(request) {
+function proxiedRequest(request, env = {}) {
   const headers = new Headers(request.headers);
   headers.delete("Authorization");
+  headers.delete(BRAVE_KEY_HEADER);
+  headers.delete(SERPER_KEY_HEADER);
   headers.delete("X-Forwarded-For");
   headers.delete("X-Real-IP");
+  if (env.BRAVE_API_KEY) headers.set(BRAVE_KEY_HEADER, env.BRAVE_API_KEY);
+  if (env.SERPER_API_KEY) headers.set(SERPER_KEY_HEADER, env.SERPER_API_KEY);
   headers.set("X-Real-IP", headers.get("CF-Connecting-IP") || "127.0.0.1");
   headers.set("X-Forwarded-Host", new URL(request.url).host);
   headers.set("X-Forwarded-Proto", "https");
@@ -95,7 +101,7 @@ export async function routeRequest(request, env = {}, containerFactory) {
 
   const started = performance.now();
   try {
-    const response = await containerFactory().fetch(proxiedRequest(request));
+    const response = await containerFactory().fetch(proxiedRequest(request, env));
     const headers = new Headers(response.headers);
     headers.append("Server-Timing", `edge;dur=${(performance.now() - started).toFixed(1)}`);
     return new Response(response.body, {

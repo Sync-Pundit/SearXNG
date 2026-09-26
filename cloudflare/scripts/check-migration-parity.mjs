@@ -75,27 +75,26 @@ for (const engine of ["findborg", "iconify", "xprivo", "braveapi"]) {
 }
 
 const worker = read("cloudflare/src/index.js");
-requireText(worker, "envVars: containerEnv(workerEnv)", "Container startup environment binding");
-requireText(worker, "startOptions: { envVars }", "per-instance Container environment binding");
 if (worker.includes("interceptHttps = true")) {
   throw new Error("Official API fallback proxy must not enable global HTTPS interception");
 }
-const containerEnvironment = read("cloudflare/src/container-env.js");
-requireText(containerEnvironment, "SEARXNG_SECRET", "Container session secret binding");
-requireText(containerEnvironment, "BRAVE_API_KEY", "Brave API fallback secret binding");
-requireText(containerEnvironment, "SERPER_API_KEY", "Serper fallback secret binding");
-requireText(containerEnvironment, "dogpile,dogpile images", "Dogpile API fallback gate");
 const yahoo = read("searx/engines/yahoo.py");
 requireText(yahoo, 'CACHE.get("YBV")', "Yahoo parent-domain cookie cache");
 requireText(yahoo, '"search.yahoo.com"', "Yahoo global-edge recovery");
 const router = read("cloudflare/src/router.js");
 requireText(router, "SEARXNG_AUTH_TOKEN", "machine JSON bearer gate");
+requireText(router, "X-Searxng-Internal-Brave-Key", "private Brave key forwarding");
+requireText(router, "X-Searxng-Internal-Serper-Key", "private Serper key forwarding");
 
 const fallbackPlugin = read("searx/plugins/serper_fallback.py");
 requireText(fallbackPlugin, "serper_api_key", "per-browser Serper key override");
 requireText(fallbackPlugin, "brave_api_key", "per-browser Brave key override");
 requireText(fallbackPlugin, "SERPER_ENDPOINT", "direct Serper API fallback");
 requireText(fallbackPlugin, "BRAVE_ENDPOINT", "direct Brave API fallback");
+requireText(fallbackPlugin, "SERPER_KEY_HEADER", "Worker Serper key consumption");
+requireText(fallbackPlugin, "BRAVE_KEY_HEADER", "Worker Brave key consumption");
+const entrypoint = read("container/entrypoint.sh");
+requireText(entrypoint, 'if [ -z "${SEARXNG_SECRET:-}" ]', "runtime session secret fallback");
 const preferences = read("searx/preferences.py");
 requireText(preferences, "class SecretSetting", "hardened API key preference");
 requireText(preferences, "isinstance(v, SecretSetting)", "secret preference URL exclusion");

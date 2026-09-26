@@ -32,13 +32,11 @@ WORKDIR /usr/local/searxng
 COPY --chown=977:977 --from=builder /usr/local/searxng/.venv/ ./.venv/
 COPY --chown=977:977 --from=builder /usr/local/searxng/searx/ ./searx/
 COPY --chown=977:977 container/ ./
-COPY --chown=977:977 cloudflare/container/provider_probe.py ./provider_probe.py
 COPY --chown=977:977 cloudflare/container/settings.yml /etc/searxng/settings.yml
 COPY --chown=977:977 cloudflare/container/limiter.toml /etc/searxng/limiter.toml
 
 ENV __SEARXNG_VERSION="cloudflare" \
     __SEARXNG_SETTINGS_PATH="/etc/searxng/settings.yml" \
-    PROVIDER_PROBE_REVISION="09f188fa8" \
     GRANIAN_PROCESS_NAME="searxng" \
     GRANIAN_INTERFACE="wsgi" \
     GRANIAN_HOST="::" \

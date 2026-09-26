@@ -39,6 +39,8 @@ BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 TIMEOUT = 3.0
 RESULTS_PER_PAGE = 10
 DEFAULT_PRIMARY_ENGINES = "google,google cse,dogpile,dogpile images,yahoo"
+BRAVE_KEY_HEADER = "X-Searxng-Internal-Brave-Key"
+SERPER_KEY_HEADER = "X-Searxng-Internal-Serper-Key"
 
 
 def _primary_engines() -> set[str]:
@@ -69,7 +71,9 @@ class SXNGPlugin(Plugin):
         )
         return True
 
-    def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
+    def post_search(
+        self, request: "SXNG_Request", search: "SearchWithPlugins"
+    ) -> EngineResults:
         results = EngineResults()
         search_query = search.search_query
 
@@ -94,6 +98,8 @@ class SXNGPlugin(Plugin):
         preferences = getattr(request, "preferences", None)
         serper_key = preferences.get_value("serper_api_key") if preferences else ""
         brave_key = preferences.get_value("brave_api_key") if preferences else ""
+        serper_key = serper_key or request.headers.get(SERPER_KEY_HEADER, "")
+        brave_key = brave_key or request.headers.get(BRAVE_KEY_HEADER, "")
         serper_key = serper_key or os.environ.get("SERPER_API_KEY", "")
         brave_key = brave_key or os.environ.get("BRAVE_API_KEY", "")
         if not serper_key and not brave_key:
@@ -103,9 +109,15 @@ class SXNGPlugin(Plugin):
             "primary engines (%s) returned nothing - querying API fallbacks",
             ", ".join(sorted(gating)),
         )
-        entries = self._query_serper(search_query.query, search_query.pageno, serper_key) if serper_key else []
+        entries = (
+            self._query_serper(search_query.query, search_query.pageno, serper_key)
+            if serper_key
+            else []
+        )
         if not entries and brave_key:
-            entries = self._query_brave(search_query.query, search_query.pageno, brave_key)
+            entries = self._query_brave(
+                search_query.query, search_query.pageno, brave_key
+            )
 
         for entry in entries:
             results.add(
@@ -117,7 +129,9 @@ class SXNGPlugin(Plugin):
             )
         return results
 
-    def _query_serper(self, query: str, pageno: int, api_key: str) -> list[dict[str, str]]:
+    def _query_serper(
+        self, query: str, pageno: int, api_key: str
+    ) -> list[dict[str, str]]:
         payload: dict[str, t.Any] = {"q": query, "num": RESULTS_PER_PAGE}
         if pageno > 1:
             payload["page"] = pageno
@@ -157,7 +171,9 @@ class SXNGPlugin(Plugin):
         )
         return output
 
-    def _query_brave(self, query: str, pageno: int, api_key: str) -> list[dict[str, str]]:
+    def _query_brave(
+        self, query: str, pageno: int, api_key: str
+    ) -> list[dict[str, str]]:
         search_args: dict[str, str | int | bool] = {
             "q": query,
             "count": RESULTS_PER_PAGE,

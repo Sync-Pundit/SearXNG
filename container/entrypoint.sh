@@ -123,4 +123,11 @@ case "${SEARXNG_PORT:-}" in
         ;;
 esac
 
+# Cloudflare Containers may start without Worker-provided environment values.
+# Never fall back to SearXNG's public development secret in that case.
+if [ -z "${SEARXNG_SECRET:-}" ]; then
+    SEARXNG_SECRET="$(head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 48)"
+    export SEARXNG_SECRET
+fi
+
 exec /usr/local/searxng/.venv/bin/granian searx.webapp:app

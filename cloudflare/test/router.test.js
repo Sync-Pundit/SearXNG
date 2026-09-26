@@ -108,6 +108,44 @@ test("authenticated JSON is proxied without exposing the bearer token", async ()
   assert.equal(container.calls[0].headers.get("X-Forwarded-Proto"), "https");
 });
 
+test("Worker provider secrets overwrite untrusted client headers", async () => {
+  const container = fakeContainer();
+  const response = await routeRequest(
+    request("/search?q=test", {
+      headers: {
+        "X-Searxng-Internal-Brave-Key": "client-brave",
+        "X-Searxng-Internal-Serper-Key": "client-serper",
+      },
+    }),
+    {
+      BRAVE_API_KEY: "worker-brave",
+      SERPER_API_KEY: "worker-serper",
+    },
+    container.factory,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(container.calls[0].headers.get("X-Searxng-Internal-Brave-Key"), "worker-brave");
+  assert.equal(container.calls[0].headers.get("X-Searxng-Internal-Serper-Key"), "worker-serper");
+});
+
+test("untrusted provider headers are removed when no Worker secret exists", async () => {
+  const container = fakeContainer();
+  await routeRequest(
+    request("/search?q=test", {
+      headers: {
+        "X-Searxng-Internal-Brave-Key": "client-brave",
+        "X-Searxng-Internal-Serper-Key": "client-serper",
+      },
+    }),
+    {},
+    container.factory,
+  );
+
+  assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Brave-Key"), false);
+  assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Serper-Key"), false);
+});
+
 test("JSON Accept headers use the same gate", async () => {
   for (const accept of ["application/json", "application/json; q=0.9", "text/html, application/json;q=0.8"]) {
     const response = await routeRequest(
