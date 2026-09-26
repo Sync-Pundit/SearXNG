@@ -19,6 +19,16 @@ export class SearxngContainer extends Container {
     super(ctx, workerEnv, { envVars: containerEnv(workerEnv) });
   }
 
+  async fetchWithEnvironment(request, envVars) {
+    if (!this.ctx.container.running) {
+      await this.startAndWaitForPorts({
+        startOptions: { envVars },
+        cancellationOptions: { portReadyTimeoutMS: 30_000 },
+      });
+    }
+    return this.containerFetch(request);
+  }
+
   async probeProviders() {
     if (!this.ctx.container.running) {
       await this.start();
@@ -53,6 +63,10 @@ export default {
         },
       });
     }
-    return routeRequest(request, workerEnv, () => container);
+    return routeRequest(request, workerEnv, () => ({
+      fetch: (proxiedRequest) => (
+        container.fetchWithEnvironment(proxiedRequest, containerEnv(workerEnv))
+      ),
+    }));
   },
 };
