@@ -3,6 +3,11 @@ import { env } from "cloudflare:workers";
 
 import { routeRequest } from "./router.js";
 
+// Retain the proxy entrypoint for Durable Objects that were previously
+// configured for outbound interception. With no interception rules it is
+// inactive, but Cloudflare requires the export while that state is retired.
+export { ContainerProxy } from "@cloudflare/containers";
+
 export class SearxngContainer extends Container {
   defaultPort = 8080;
   enableInternet = true;
