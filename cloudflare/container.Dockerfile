@@ -38,6 +38,7 @@ COPY --chown=977:977 cloudflare/container/limiter.toml /etc/searxng/limiter.toml
 
 ENV __SEARXNG_VERSION="cloudflare" \
     __SEARXNG_SETTINGS_PATH="/etc/searxng/settings.yml" \
+    PROVIDER_PROBE_REVISION="09f188fa8" \
     GRANIAN_PROCESS_NAME="searxng" \
     GRANIAN_INTERFACE="wsgi" \
     GRANIAN_HOST="::" \
