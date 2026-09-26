@@ -1,7 +1,6 @@
 import { Container, getContainer } from "@cloudflare/containers";
 
 import { containerEnv } from "./container-env.js";
-import { proxyFallbackProvider } from "./fallback-proxy.js";
 import { routeRequest } from "./router.js";
 
 // Retain the proxy entrypoint for Durable Objects that were previously
@@ -26,10 +25,6 @@ export class SearxngContainer extends Container {
     }));
   }
 }
-
-SearxngContainer.outboundByHost = {
-  "api-fallback.internal": proxyFallbackProvider,
-};
 
 export default {
   fetch(request, workerEnv) {

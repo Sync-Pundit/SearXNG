@@ -46,25 +46,6 @@ def _primary_engines() -> set[str]:
     return {name.strip().lower() for name in raw.split(",") if name.strip()}
 
 
-def _provider_endpoint(provider: str, public_endpoint: str) -> str:
-    proxy_base = os.environ.get("FALLBACK_PROXY_BASE", "").rstrip("/")
-    return f"{proxy_base}/{provider}" if proxy_base else public_endpoint
-
-
-def _diagnostic(stage: str) -> None:
-    proxy_base = os.environ.get("FALLBACK_PROXY_BASE", "").rstrip("/")
-    if os.environ.get("FALLBACK_DIAGNOSTICS") != "1" or not proxy_base:
-        return
-    try:
-        network.get(
-            f"{proxy_base}/diagnostic",
-            headers={"X-Fallback-Stage": stage},
-            timeout=0.5,
-        )
-    except (RequestException, SearxEngineResponseException):
-        pass
-
-
 class SXNGPlugin(Plugin):
     """Add paid API results only when the queried primary providers were empty."""
 
@@ -91,7 +72,6 @@ class SXNGPlugin(Plugin):
     def post_search(self, request: "SXNG_Request", search: "SearchWithPlugins") -> EngineResults:
         results = EngineResults()
         search_query = search.search_query
-        _diagnostic("post-search")
 
         try:
             max_page = int(os.environ.get("SERPER_MAX_PAGE", "5"))
@@ -104,13 +84,11 @@ class SXNGPlugin(Plugin):
         queried = {reference.name.lower() for reference in search_query.engineref_list}
         gating = queried & primaries
         if not gating:
-            _diagnostic("not-gated")
             return results
 
         for result in search.result_container.main_results_map.values():
             provenance = {name.lower() for name in getattr(result, "engines", set())}
             if provenance & gating:
-                _diagnostic("primary-results")
                 return results
 
         preferences = getattr(request, "preferences", None)
@@ -119,10 +97,7 @@ class SXNGPlugin(Plugin):
         serper_key = serper_key or os.environ.get("SERPER_API_KEY", "")
         brave_key = brave_key or os.environ.get("BRAVE_API_KEY", "")
         if not serper_key and not brave_key:
-            _diagnostic("keys-missing")
             return results
-
-        _diagnostic("provider-call")
 
         self.log.debug(
             "primary engines (%s) returned nothing - querying API fallbacks",
@@ -149,7 +124,7 @@ class SXNGPlugin(Plugin):
 
         try:
             response = network.post(
-                _provider_endpoint("serper", SERPER_ENDPOINT),
+                SERPER_ENDPOINT,
                 json=payload,
                 headers={
                     "X-API-KEY": api_key,
@@ -192,7 +167,7 @@ class SXNGPlugin(Plugin):
 
         try:
             response = network.get(
-                f"{_provider_endpoint('brave', BRAVE_ENDPOINT)}?{urlencode(search_args)}",
+                f"{BRAVE_ENDPOINT}?{urlencode(search_args)}",
                 headers={
                     "X-Subscription-Token": api_key,
                     "Accept": "application/json",

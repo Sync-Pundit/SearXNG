@@ -76,7 +76,6 @@ for (const engine of ["findborg", "iconify", "xprivo", "braveapi"]) {
 
 const worker = read("cloudflare/src/index.js");
 requireText(worker, "containerEnv(workerEnv)", "explicit Container environment binding");
-requireText(worker, '"api-fallback.internal": proxyFallbackProvider', "Worker-side API fallback egress");
 if (worker.includes("interceptHttps = true")) {
   throw new Error("Official API fallback proxy must not enable global HTTPS interception");
 }
@@ -94,6 +93,8 @@ requireText(router, "SEARXNG_AUTH_TOKEN", "machine JSON bearer gate");
 const fallbackPlugin = read("searx/plugins/serper_fallback.py");
 requireText(fallbackPlugin, "serper_api_key", "per-browser Serper key override");
 requireText(fallbackPlugin, "brave_api_key", "per-browser Brave key override");
+requireText(fallbackPlugin, "SERPER_ENDPOINT", "direct Serper API fallback");
+requireText(fallbackPlugin, "BRAVE_ENDPOINT", "direct Brave API fallback");
 const preferences = read("searx/preferences.py");
 requireText(preferences, "class SecretSetting", "hardened API key preference");
 requireText(preferences, "isinstance(v, SecretSetting)", "secret preference URL exclusion");

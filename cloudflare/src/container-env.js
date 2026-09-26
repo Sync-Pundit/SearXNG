@@ -4,8 +4,6 @@ const DEFAULT_PRIMARY_ENGINES = "google,google cse,dogpile,dogpile images,yahoo"
 export function containerEnv(workerEnv) {
   return {
     BRAVE_API_KEY: workerEnv.BRAVE_API_KEY || "",
-    FALLBACK_DIAGNOSTICS: "1",
-    FALLBACK_PROXY_BASE: "http://api-fallback.internal",
     SEARXNG_BASE_URL: workerEnv.SEARXNG_BASE_URL || DEFAULT_BASE_URL,
     SEARXNG_SECRET: workerEnv.SEARXNG_SECRET || "",
     SERPER_API_KEY: workerEnv.SERPER_API_KEY || "",

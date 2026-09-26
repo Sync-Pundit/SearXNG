@@ -101,32 +101,22 @@ class ApiFallbackTest(unittest.TestCase):
         self.assertEqual(results, [])
 
     @mock.patch("searx.plugins.serper_fallback.network.post")
-    def test_cloudflare_serper_proxy(self, post):
+    def test_serper_uses_official_endpoint(self, post):
         post.return_value = mock.Mock(json=lambda: {"organic": []})
         post.return_value.raise_for_status.return_value = None
 
-        with mock.patch.dict(
-            os.environ,
-            {"FALLBACK_PROXY_BASE": "http://api-fallback.internal"},
-            clear=False,
-        ):
-            SXNGPlugin._query_serper(self.plugin, "proxied", 1, "serper")
+        SXNGPlugin._query_serper(self.plugin, "direct", 1, "serper")
 
-        self.assertEqual(post.call_args.args[0], "http://api-fallback.internal/serper")
+        self.assertEqual(post.call_args.args[0], "https://google.serper.dev/search")
 
     @mock.patch("searx.plugins.serper_fallback.network.get")
-    def test_cloudflare_brave_proxy(self, get):
+    def test_brave_uses_official_endpoint(self, get):
         get.return_value = mock.Mock(json=lambda: {"web": {"results": []}})
         get.return_value.raise_for_status.return_value = None
 
-        with mock.patch.dict(
-            os.environ,
-            {"FALLBACK_PROXY_BASE": "http://api-fallback.internal"},
-            clear=False,
-        ):
-            SXNGPlugin._query_brave(self.plugin, "proxied", 1, "brave")
+        SXNGPlugin._query_brave(self.plugin, "direct", 1, "brave")
 
-        self.assertTrue(get.call_args.args[0].startswith("http://api-fallback.internal/brave?"))
+        self.assertTrue(get.call_args.args[0].startswith("https://api.search.brave.com/res/v1/web/search?"))
 
     def test_browser_serper_key_overrides_instance_key(self):
         self.plugin._query_serper.return_value = [
