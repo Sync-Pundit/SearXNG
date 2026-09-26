@@ -38,7 +38,12 @@ export class SearxngContainer extends Container {
 export default {
   async fetch(request, workerEnv) {
     const container = getContainer(workerEnv.SEARXNG_CONTAINER, "primary");
-    if (new URL(request.url).pathname === "/__provider-acceptance-2e2d277b7") {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/__provider-acceptance-2e2d277b7/restart") {
+      await container.stop();
+      return new Response(null, { status: 204 });
+    }
+    if (pathname === "/__provider-acceptance-2e2d277b7") {
       const results = await container.probeProviders();
       console.log(JSON.stringify({ event: "provider_acceptance", ...results }));
       return new Response(JSON.stringify(results), {
