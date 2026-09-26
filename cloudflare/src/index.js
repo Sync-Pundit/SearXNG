@@ -24,6 +24,22 @@ export class SearxngContainer extends Container {
       serperConfigured: Boolean(this.envVars.SERPER_API_KEY),
     }));
   }
+
+  async onStart() {
+    try {
+      const process = await this.ctx.container.exec([
+        "/usr/local/searxng/.venv/bin/python",
+        "/usr/local/searxng/provider_probe.py",
+      ]);
+      const output = await new Response(process.stdout).text();
+      console.log(JSON.stringify({
+        event: "provider_acceptance",
+        ...JSON.parse(output),
+      }));
+    } catch (caught) {
+      console.error("Provider acceptance probe failed", caught);
+    }
+  }
 }
 
 export default {
