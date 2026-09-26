@@ -7,7 +7,7 @@ named `YBV`, which is cached for 24h before expiring.
 """
 
 import typing as t
-from urllib.parse import unquote, urlencode, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlsplit, urlunsplit
 
 from searx.enginelib import EngineCache
 from searx.network import get  # see https://github.com/searxng/searxng/issues/762
@@ -31,6 +31,9 @@ categories = ["general", "web"]
 paging = True
 time_range_support = True
 safesearch = True
+timeout = 8.0
+search_domain: str | None = None
+"""Optional fixed Yahoo domain for deployments with provider-specific egress routing."""
 
 time_range_dict = {"day": "d", "week": "w", "month": "m"}
 safesearch_dict = {0: "p", 1: "i", 2: "r"}
@@ -119,11 +122,6 @@ _YBV_HOPS = 6
 """Tracking pixel -> gif -> (optional) geo redirect i.e. au.search.yahoo.com -> 200"""
 
 
-def _ybv_cache_key(url_or_host: str) -> str:
-    host = urlsplit(url_or_host).hostname if "://" in url_or_host else url_or_host
-    return f"YBV:{(host or 'search.yahoo.com').lower()}"
-
-
 def setup(engine_settings: dict[str, t.Any]):
     global CACHE  # pylint: disable=global-statement
     CACHE = EngineCache(engine_settings["name"])
@@ -156,13 +154,13 @@ def request(query: str, params: "OnlineParams") -> None:
         }
     )
 
-    domain = "search.yahoo.com"
-    if len(parts) > 1 and parts[-1] in region2domain:
+    domain = search_domain or "search.yahoo.com"
+    if search_domain is None and len(parts) > 1 and parts[-1] in region2domain:
         domain = region2domain[parts[-1]]
     logger.debug("domain selected: %s", domain)
     params["url"] = f"https://{domain}/search?{urlencode(url_params)}"
     params["raise_for_httperror"] = False
-    if ybv := CACHE.get(_ybv_cache_key(domain)):
+    if ybv := CACHE.get("YBV"):
         params["cookies"]["YBV"] = ybv
 
 
@@ -189,12 +187,12 @@ def _yahoo_html(resp: "SXNG_Response") -> "SXNG_Response":
     cookies = dict(resp.search_params["cookies"])
     params = resp.search_params
     retried_empty_response = False
+    retried_global = False
     for _ in range(_YBV_HOPS):
-        current_host = urlsplit(str(resp.url)).hostname or "search.yahoo.com"
         if ybv := resp.cookies.get("YBV"):
             cookies["YBV"] = ybv
             if ybv.startswith("v0.2"):
-                CACHE.set(_ybv_cache_key(current_host), ybv, expire=86400)
+                CACHE.set("YBV", ybv, expire=86400)
 
         if resp.status_code == 200 and resp.content and resp.content.strip():
             return resp
@@ -205,26 +203,24 @@ def _yahoo_html(resp: "SXNG_Response") -> "SXNG_Response":
         elif resp.status_code == 200 and not retried_empty_response:
             target = str(resp.url)
             retried_empty_response = True
+        elif resp.status_code >= 500 and not retried_global:
+            current_url = urlsplit(str(resp.url))
+            if current_url.hostname == "search.yahoo.com":
+                return resp
+            target = urlunsplit((current_url.scheme, "search.yahoo.com", current_url.path, current_url.query, ""))
+            retried_global = True
         else:
             return resp
 
-        target_host = urlsplit(target).hostname or current_host
-        if target_host != current_host:
-            cookies.pop("YBV", None)
-            if cached_ybv := CACHE.get(_ybv_cache_key(target_host)):
-                cookies["YBV"] = cached_ybv
-
-        # Request ourselves instead of following the redirect. Yahoo sometimes
-        # returns an empty 200 for a reused regional YBV cookie. Host-scoped
-        # cookies and one fresh request recover without poisoning searches from
-        # another locale. A provider 5xx is returned immediately so a broken
-        # Yahoo edge cannot consume the entire metasearch timeout.
+        # Yahoo sets YBV for the search.yahoo.com parent domain, so the cookie
+        # must survive redirects between regional and global search hosts.
         resp = get(
             target,
             cookies=dict(cookies),
             headers={**params["headers"], "Cache-Control": "no-cache"},
             allow_redirects=False,
             raise_for_httperror=False,
+            timeout=timeout,
         )
         resp.search_params = params
 

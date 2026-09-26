@@ -37,7 +37,7 @@ search:
 
 outgoing:
   request_timeout: 3.0
-  max_request_timeout: 5.0
+  max_request_timeout: 8.0
 
 plugins:
   searx.plugins.calculator.SXNGPlugin:
@@ -101,3 +101,5 @@ engines:
   - name: yahoo
     inactive: false
     enable_http2: false
+    search_domain: search.yahoo.com
+    timeout: 8.0
