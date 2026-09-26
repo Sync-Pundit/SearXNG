@@ -32,6 +32,7 @@ WORKDIR /usr/local/searxng
 COPY --chown=977:977 --from=builder /usr/local/searxng/.venv/ ./.venv/
 COPY --chown=977:977 --from=builder /usr/local/searxng/searx/ ./searx/
 COPY --chown=977:977 container/ ./
+COPY --chown=977:977 cloudflare/container/provider_probe.py ./provider_probe.py
 COPY --chown=977:977 cloudflare/container/settings.yml /etc/searxng/settings.yml
 COPY --chown=977:977 cloudflare/container/limiter.toml /etc/searxng/limiter.toml
 
