@@ -47,3 +47,17 @@ test("Unknown proxy paths fail closed", async () => {
 
   assert.equal(response.status, 404);
 });
+
+test("Fallback diagnostics remain inside the Worker", async () => {
+  let externalCalls = 0;
+  const response = await proxyFallbackProvider(new Request(
+    "http://api-fallback.internal/diagnostic",
+    { headers: { "X-Fallback-Stage": "post-search" } },
+  ), async () => {
+    externalCalls += 1;
+    return new Response("must not run");
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(externalCalls, 0);
+});

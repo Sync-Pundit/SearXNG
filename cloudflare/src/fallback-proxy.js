@@ -5,6 +5,13 @@ const PROVIDER_TARGETS = Object.freeze({
 
 export async function proxyFallbackProvider(request, fetcher = fetch) {
   const requestUrl = new URL(request.url);
+  if (requestUrl.pathname === "/diagnostic") {
+    console.log(JSON.stringify({
+      event: "fallback_diagnostic",
+      stage: request.headers.get("X-Fallback-Stage") || "unknown",
+    }));
+    return new Response(null, { status: 204 });
+  }
   const providerUrl = PROVIDER_TARGETS[requestUrl.pathname];
   if (!providerUrl) {
     return new Response("Fallback provider not found", { status: 404 });

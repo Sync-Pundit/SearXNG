@@ -15,6 +15,7 @@ test("Worker secrets and configuration are passed to the container", () => {
 
   assert.deepEqual(values, {
     BRAVE_API_KEY: "brave-secret",
+    FALLBACK_DIAGNOSTICS: "1",
     FALLBACK_PROXY_BASE: "http://api-fallback.internal",
     SEARXNG_BASE_URL: "https://search.example/",
     SEARXNG_SECRET: "session-secret",
@@ -27,6 +28,7 @@ test("Worker secrets and configuration are passed to the container", () => {
 test("Container defaults remain usable when optional Worker values are absent", () => {
   assert.deepEqual(containerEnv({}), {
     BRAVE_API_KEY: "",
+    FALLBACK_DIAGNOSTICS: "1",
     FALLBACK_PROXY_BASE: "http://api-fallback.internal",
     SEARXNG_BASE_URL: "https://searxng.pundit.workers.dev/",
     SEARXNG_SECRET: "",
