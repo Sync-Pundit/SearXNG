@@ -78,18 +78,7 @@ const worker = read("cloudflare/src/index.js");
 requireText(worker, "SEARXNG_SECRET", "Container session secret binding");
 requireText(worker, "BRAVE_API_KEY", "Brave API fallback secret binding");
 requireText(worker, "SERPER_API_KEY", "Serper fallback secret binding");
-requireText(worker, "ContainerProxy", "Container outbound proxy export");
-requireText(worker, "interceptHttps = true", "HTTPS provider interception");
-requireText(
-  worker,
-  "SearxngContainer.outboundByHost =",
-  "ES2022-safe outbound handler registration",
-);
-for (const host of ["www.dogpile.com", "www.google.com", "search.yahoo.com"]) {
-  requireText(worker, `\"${host}\": proxyProviderRequest`, `Workers egress for ${host}`);
-}
-const entrypoint = read("container/entrypoint.sh");
-requireText(entrypoint, "cloudflare-containers-ca.crt", "Container interception CA trust");
+requireText(worker, "dogpile,dogpile images", "Dogpile API fallback gate");
 const yahoo = read("searx/engines/yahoo.py");
 requireText(yahoo, 'CACHE.get("YBV")', "Yahoo parent-domain cookie cache");
 requireText(yahoo, '"search.yahoo.com"', "Yahoo global-edge recovery");

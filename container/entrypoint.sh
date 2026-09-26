@@ -108,11 +108,6 @@ setup
 
 # root only features
 if [ "$(id -u)" -eq 0 ]; then
-    if [ -f /etc/cloudflare/certs/cloudflare-containers-ca.crt ]; then
-        mkdir -p /usr/local/share/ca-certificates
-        cp /etc/cloudflare/certs/cloudflare-containers-ca.crt \
-            /usr/local/share/ca-certificates/cloudflare-containers-ca.crt
-    fi
     update-ca-certificates
 fi
 
