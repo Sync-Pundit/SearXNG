@@ -1,6 +1,6 @@
 import { Container, getContainer } from "@cloudflare/containers";
-import { env } from "cloudflare:workers";
 
+import { containerEnv } from "./container-env.js";
 import { proxyFallbackProvider } from "./fallback-proxy.js";
 import { routeRequest } from "./router.js";
 
@@ -15,15 +15,16 @@ export class SearxngContainer extends Container {
   pingEndpoint = "container/healthz";
   requiredPorts = [8080];
   sleepAfter = "24h";
-  envVars = {
-    BRAVE_API_KEY: env.BRAVE_API_KEY || "",
-    FALLBACK_PROXY_BASE: "http://api-fallback.internal",
-    SEARXNG_BASE_URL: env.SEARXNG_BASE_URL || "https://searxng.pundit.workers.dev/",
-    SEARXNG_SECRET: env.SEARXNG_SECRET || "",
-    SERPER_API_KEY: env.SERPER_API_KEY || "",
-    SERPER_MAX_PAGE: env.SERPER_MAX_PAGE || "5",
-    SERPER_PRIMARY_ENGINES: env.SERPER_PRIMARY_ENGINES || "google,google cse,dogpile,dogpile images,yahoo",
-  };
+
+  constructor(ctx, workerEnv) {
+    super(ctx, workerEnv);
+    this.envVars = containerEnv(workerEnv);
+    console.log(JSON.stringify({
+      event: "container_environment",
+      braveConfigured: Boolean(this.envVars.BRAVE_API_KEY),
+      serperConfigured: Boolean(this.envVars.SERPER_API_KEY),
+    }));
+  }
 }
 
 SearxngContainer.outboundByHost = {
