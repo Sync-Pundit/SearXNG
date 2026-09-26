@@ -26,11 +26,18 @@ export class SearxngContainer extends Container {
   }
 
   async probeProviders() {
+    if (!this.ctx.container.running) {
+      await this.start();
+    }
     const process = await this.ctx.container.exec([
       "/usr/local/searxng/.venv/bin/python",
       "/usr/local/searxng/provider_probe.py",
     ]);
-    return JSON.parse(await new Response(process.stdout).text());
+    const output = await process.output();
+    if (output.exitCode !== 0) {
+      throw new Error(`Provider acceptance probe exited with ${output.exitCode}`);
+    }
+    return JSON.parse(new TextDecoder().decode(output.stdout));
   }
 }
 
