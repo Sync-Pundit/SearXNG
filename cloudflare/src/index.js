@@ -11,10 +11,13 @@ export { ContainerProxy } from "@cloudflare/containers";
 export class SearxngContainer extends Container {
   defaultPort = 8080;
   enableInternet = true;
-  envVars = containerEnv(this.env);
   pingEndpoint = "container/healthz";
   requiredPorts = [8080];
   sleepAfter = "24h";
+
+  constructor(ctx, workerEnv) {
+    super(ctx, workerEnv, { envVars: containerEnv(workerEnv) });
+  }
 
   async probeProviders() {
     if (!this.ctx.container.running) {
