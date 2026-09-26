@@ -8,6 +8,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
+from searx.exceptions import SearxEngineAccessDeniedException
 from searx.plugins import PluginCfg
 from searx.plugins.serper_fallback import SXNGPlugin
 
@@ -73,6 +74,31 @@ class ApiFallbackTest(unittest.TestCase):
 
         self.plugin._query_serper.assert_called_once_with("site:example.test threat", 1, "serper")
         self.plugin._query_brave.assert_called_once_with("site:example.test threat", 1, "brave")
+
+    def test_yahoo_failure_triggers_api_fallback(self):
+        self.plugin.post_search(
+            request_with("serper", "brave"),
+            search_with(engines=("yahoo",)),
+        )
+
+        self.plugin._query_serper.assert_called_once_with("site:example.test threat", 1, "serper")
+        self.plugin._query_brave.assert_called_once_with("site:example.test threat", 1, "brave")
+
+    @mock.patch("searx.plugins.serper_fallback.network.post")
+    def test_serper_engine_error_returns_empty_results(self, post):
+        post.side_effect = SearxEngineAccessDeniedException(suspended_time=0)
+
+        results = self.plugin._query_serper("blocked", 1, "serper")
+
+        self.assertEqual(results, [])
+
+    @mock.patch("searx.plugins.serper_fallback.network.get")
+    def test_brave_engine_error_returns_empty_results(self, get):
+        get.side_effect = SearxEngineAccessDeniedException(suspended_time=0)
+
+        results = self.plugin._query_brave("blocked", 1, "brave")
+
+        self.assertEqual(results, [])
 
     def test_browser_serper_key_overrides_instance_key(self):
         self.plugin._query_serper.return_value = [

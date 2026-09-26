@@ -8,7 +8,7 @@
   "vars": {
     "SEARXNG_BASE_URL": "https://searxng.pundit.workers.dev/",
     "SERPER_MAX_PAGE": "5",
-    "SERPER_PRIMARY_ENGINES": "google,google cse,dogpile,dogpile images"
+    "SERPER_PRIMARY_ENGINES": "google,google cse,dogpile,dogpile images,yahoo"
   },
   "assets": {
     "directory": ".assets",

@@ -20,7 +20,7 @@ export class SearxngContainer extends Container {
     SEARXNG_SECRET: env.SEARXNG_SECRET || "",
     SERPER_API_KEY: env.SERPER_API_KEY || "",
     SERPER_MAX_PAGE: env.SERPER_MAX_PAGE || "5",
-    SERPER_PRIMARY_ENGINES: env.SERPER_PRIMARY_ENGINES || "google,google cse,dogpile,dogpile images",
+    SERPER_PRIMARY_ENGINES: env.SERPER_PRIMARY_ENGINES || "google,google cse,dogpile,dogpile images,yahoo",
   };
 }
 

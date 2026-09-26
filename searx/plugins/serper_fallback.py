@@ -23,6 +23,7 @@ from curl_cffi.requests.exceptions import RequestException
 from flask_babel import gettext
 
 from searx import network
+from searx.exceptions import SearxEngineResponseException
 from searx.result_types import EngineResults
 
 from . import Plugin, PluginInfo
@@ -37,7 +38,7 @@ SERPER_ENDPOINT = "https://google.serper.dev/search"
 BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 TIMEOUT = 3.0
 RESULTS_PER_PAGE = 10
-DEFAULT_PRIMARY_ENGINES = "google,google cse,dogpile,dogpile images"
+DEFAULT_PRIMARY_ENGINES = "google,google cse,dogpile,dogpile images,yahoo"
 
 
 def _primary_engines() -> set[str]:
@@ -133,7 +134,7 @@ class SXNGPlugin(Plugin):
             )
             response.raise_for_status()
             data = response.json()
-        except (RequestException, ValueError) as exc:
+        except (RequestException, SearxEngineResponseException, ValueError) as exc:
             self.log.warning("Serper request failed: %s", exc)
             return []
 
@@ -175,7 +176,7 @@ class SXNGPlugin(Plugin):
             )
             response.raise_for_status()
             data = response.json()
-        except (RequestException, ValueError) as exc:
+        except (RequestException, SearxEngineResponseException, ValueError) as exc:
             self.log.warning("Brave API request failed: %s", exc)
             return []
 
