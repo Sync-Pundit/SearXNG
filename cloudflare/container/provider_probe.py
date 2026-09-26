@@ -48,13 +48,24 @@ def brave() -> dict[str, int | str]:
     }
 
 
-def probe(callable_) -> dict[str, int | str]:
+def probe(callable_, configured: bool) -> dict[str, int | str | bool]:
     try:
-        return callable_()
+        return {"configured": configured, **callable_()}
     except urllib.error.HTTPError as error:
-        return {"status": error.code, "results": 0}
+        return {"configured": configured, "status": error.code, "results": 0}
     except Exception as error:  # pylint: disable=broad-exception-caught
-        return {"status": type(error).__name__, "results": 0}
+        return {
+            "configured": configured,
+            "status": type(error).__name__,
+            "results": 0,
+        }
 
 
-print(json.dumps({"serper": probe(serper), "brave": probe(brave)}))
+print(
+    json.dumps(
+        {
+            "serper": probe(serper, bool(os.environ.get("SERPER_API_KEY"))),
+            "brave": probe(brave, bool(os.environ.get("BRAVE_API_KEY"))),
+        }
+    )
+)
