@@ -61,8 +61,8 @@ ranking or provider uptime. The old Metasearch2 runtime was unavailable for a
 live side-by-side comparison.
 
 uMzingeli's active search sources use `SEARXNG_BASE_URL` and the SearXNG JSON
-shape. Link Extractor 9000 had classified the `search` hostname as Metasearch2;
-its separate change updates that host to SearXNG. uMlindi retains a legacy
+shape. Link Extractor 9000 still classifies the `search` hostname as
+Metasearch2 and uses its old result selector. uMlindi retains a legacy
 Metasearch2 health check. The old JSON format differs from SearXNG's. Unknown
 external clients may still depend on it.
 
