@@ -18,26 +18,56 @@ search sources and belong in SearXNG plugins rather than engine adapters.
 ## Result previews
 
 The optional Result preview plugin checks the eight highest-ranked results on
-the first HTML page. If one points to a GitHub repository, MDN documentation,
-or docs.rs, the plugin fetches that page and shows a short text preview in the
-existing infobox area. It makes at most one request, with a 1.5-second timeout.
-Only exact HTTPS hosts are eligible, and redirects are not followed. An
-existing infobox takes precedence. JSON searches do not run the plugin.
+the first HTML page. It supports GitHub repositories, MDN, docs.rs, and
+Minecraft Wiki articles. Minecraft Wiki uses its plaintext article API because
+the normal article page is large and was blocked from this runtime. With an
+optional `STACKEXCHANGE_API_KEY` Worker secret, it also shows an accepted
+Stack Exchange answer. Its API response is cached in each Python process for
+one minute, and API backoff and exhausted quota suppress further requests.
+Without the key, Stack Exchange results remain ordinary links.
+
+The plugin makes at most one outbound request per search, with a 1.5-second
+timeout. Only exact HTTPS hosts are eligible, and redirects are not followed.
+An existing infobox takes precedence. JSON searches do not run the plugin.
 
 The plugin is enabled by default and can be disabled in Preferences. A failed
 page fetch leaves the ordinary results intact.
 
-## Still to assess
+## Instant tools
 
-- Metasearch2's page previews for Minecraft Wiki and Stack Exchange.
-- Its specialized instant tools, including Numbat, Fend, thesaurus, color
-  picker, and notepad. Compare each with SearXNG's existing answers before
-  moving it.
-- Ranking differences. SearXNG already weights engines and positions, but its
-  duplicate handling and result order are not identical to Metasearch2's.
-- Metasearch2's streamed progress UI. SearXNG currently renders its normal
-  results page after the search completes.
+| Metasearch2 tool | SearXNG path | Decision |
+| --- | --- | --- |
+| Numbat, Fend | Client calculator and server unit converter | Keep the SearXNG tools. They handle ordinary arithmetic and unit conversion, but do not cover Numbat's full language or Fend's constants. Do not add a second evaluator without a concrete use case. |
+| Dictionary | Wordnik and other dictionary engines | Keep SearXNG's sources. |
+| Thesaurus | General web results; the German Woxikon synonym engine is in the catalog | An English instant synonym answer remains a gap. The old Thesaurus.com scraper is brittle. [Datamuse](https://www.datamuse.com/api/) has a documented synonym API, but asks customer-facing apps to contact them before use. |
+| Color picker | Search results for color values | An interactive picker remains a gap. It is a browser tool rather than a search provider. |
+| Notepad | None | Do not put a browser-only, unsaved text editor in the search result page. |
+| IP, user agent, timezone, Wikipedia | Self Information, Timezones, and Wikipedia | Keep SearXNG's built-in paths. |
 
-Do not retire Metasearch2 or redirect a hostname on the strength of this first
-change alone. Compare representative queries and confirm that any clients of
-its JSON format have a compatible SearXNG path.
+## Search behavior and clients
+
+Metasearch2 adds `engine_weight / position` across duplicate URLs. SearXNG
+also merges duplicates, but multiplies engine weights and accounts for how many
+positions contributed. Its hostnames plugin can change priorities, while
+Metasearch2 also rewrites full URLs, including Minecraft Fandom paths. Blindly
+copying Metasearch2's weights would change SearXNG's broader engine catalog.
+
+On 2026-10-02, `search.syncpundit.io` and `searx.syncpundit.io` both served
+SearXNG HTML. Six representative searches on the former returned results:
+GitHub site search (26), Minecraft Wiki (24), Python documentation (26),
+English synonyms (23), unit conversion (28, with a `200 cm` answer), and a hex
+color (20). These are point-in-time observations, not evidence of identical
+ranking or provider uptime. The old Metasearch2 runtime was unavailable for a
+live side-by-side comparison.
+
+uMzingeli's active search sources use `SEARXNG_BASE_URL` and the SearXNG JSON
+shape. Link Extractor 9000 had classified the `search` hostname as Metasearch2;
+its separate change updates that host to SearXNG. uMlindi retains a legacy
+Metasearch2 health check. The old JSON format differs from SearXNG's. Unknown
+external clients may still depend on it.
+
+Metasearch2 streamed engine progress in the HTML response. SearXNG waits for
+its search result page. Keeping SearXNG's normal page avoids a second response
+path and preserves its upstream UI. Search is already being served on the old
+hostname, but repository work alone cannot prove that no external client still
+depends on Metasearch2's JSON response.

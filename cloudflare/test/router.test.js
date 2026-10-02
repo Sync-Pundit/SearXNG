@@ -115,11 +115,13 @@ test("Worker provider secrets overwrite untrusted client headers", async () => {
       headers: {
         "X-Searxng-Internal-Brave-Key": "client-brave",
         "X-Searxng-Internal-Serper-Key": "client-serper",
+        "X-Searxng-Internal-Stackexchange-Key": "client-stack",
       },
     }),
     {
       BRAVE_API_KEY: "worker-brave",
       SERPER_API_KEY: "worker-serper",
+      STACKEXCHANGE_API_KEY: "worker-stack",
     },
     container.factory,
   );
@@ -127,6 +129,7 @@ test("Worker provider secrets overwrite untrusted client headers", async () => {
   assert.equal(response.status, 200);
   assert.equal(container.calls[0].headers.get("X-Searxng-Internal-Brave-Key"), "worker-brave");
   assert.equal(container.calls[0].headers.get("X-Searxng-Internal-Serper-Key"), "worker-serper");
+  assert.equal(container.calls[0].headers.get("X-Searxng-Internal-Stackexchange-Key"), "worker-stack");
 });
 
 test("untrusted provider headers are removed when no Worker secret exists", async () => {
@@ -136,6 +139,7 @@ test("untrusted provider headers are removed when no Worker secret exists", asyn
       headers: {
         "X-Searxng-Internal-Brave-Key": "client-brave",
         "X-Searxng-Internal-Serper-Key": "client-serper",
+        "X-Searxng-Internal-Stackexchange-Key": "client-stack",
       },
     }),
     {},
@@ -144,6 +148,23 @@ test("untrusted provider headers are removed when no Worker secret exists", asyn
 
   assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Brave-Key"), false);
   assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Serper-Key"), false);
+  assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Stackexchange-Key"), false);
+});
+
+test("Stack Exchange key stays out of machine searches", async () => {
+  const container = fakeContainer();
+  await routeRequest(
+    request("/search?q=test&format=json", { headers: { Authorization: `Bearer ${TOKEN}` } }),
+    { SEARXNG_AUTH_TOKEN: TOKEN, STACKEXCHANGE_API_KEY: "worker-stack" },
+    container.factory,
+  );
+  assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Stackexchange-Key"), false);
+});
+
+test("Stack Exchange key stays out of non-search routes", async () => {
+  const container = fakeContainer();
+  await routeRequest(request("/preferences"), { STACKEXCHANGE_API_KEY: "worker-stack" }, container.factory);
+  assert.equal(container.calls[0].headers.has("X-Searxng-Internal-Stackexchange-Key"), false);
 });
 
 test("JSON Accept headers use the same gate", async () => {

@@ -43,11 +43,15 @@ avoid repeated cold starts during normal use. Cloudflare may still restart or
 reschedule it, so the Worker returns a retryable `503` with `Retry-After: 2`
 while the process starts.
 
-Container secrets are passed as environment variables:
+The deployment uses these secrets:
 
 - `SERPER_API_KEY` is the default key for the first API fallback.
 - `BRAVE_API_KEY` is the default key for the second API fallback.
 - `SEARXNG_SECRET` signs SearXNG preferences.
+- `STACKEXCHANGE_API_KEY` is optional. When present, the result preview plugin
+  can show an accepted answer for a Stack Exchange question in HTML searches.
+  Add it as a Worker secret in the Cloudflare dashboard. The Worker replaces
+  any client-supplied internal key header before forwarding HTML searches.
 
 `brave` remains the selectable HTML engine. `braveapi` remains a distinct
 implementation in the source catalog, but is inactive as a direct engine. The

@@ -1,6 +1,7 @@
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
 const BRAVE_KEY_HEADER = "X-Searxng-Internal-Brave-Key";
 const SERPER_KEY_HEADER = "X-Searxng-Internal-Serper-Key";
+const STACK_KEY_HEADER = "X-Searxng-Internal-Stackexchange-Key";
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -61,16 +62,21 @@ function isJsonSearch(request, url) {
 }
 
 function proxiedRequest(request, env = {}) {
+  const url = new URL(request.url);
   const headers = new Headers(request.headers);
   headers.delete("Authorization");
   headers.delete(BRAVE_KEY_HEADER);
   headers.delete(SERPER_KEY_HEADER);
+  headers.delete(STACK_KEY_HEADER);
   headers.delete("X-Forwarded-For");
   headers.delete("X-Real-IP");
   if (env.BRAVE_API_KEY) headers.set(BRAVE_KEY_HEADER, env.BRAVE_API_KEY);
   if (env.SERPER_API_KEY) headers.set(SERPER_KEY_HEADER, env.SERPER_API_KEY);
+  if (env.STACKEXCHANGE_API_KEY && url.pathname === "/search" && !isJsonSearch(request, url)) {
+    headers.set(STACK_KEY_HEADER, env.STACKEXCHANGE_API_KEY);
+  }
   headers.set("X-Real-IP", headers.get("CF-Connecting-IP") || "127.0.0.1");
-  headers.set("X-Forwarded-Host", new URL(request.url).host);
+  headers.set("X-Forwarded-Host", url.host);
   headers.set("X-Forwarded-Proto", "https");
   return new Request(request, { headers });
 }
