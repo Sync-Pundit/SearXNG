@@ -228,6 +228,9 @@ plugins:
   searx.plugins.self_info.SXNGPlugin:
     active: true
 
+  searx.plugins.result_preview.SXNGPlugin:
+    active: true
+
   searx.plugins.unit_converter.SXNGPlugin:
     active: true
 
@@ -2146,6 +2149,12 @@ engines:
       use_official_api: false
       require_api_key: false
       results: JSON
+
+  - name: rightdao
+    engine: rightdao
+    shortcut: rdao
+    weight: 0.1
+    disabled: true
 
   - name: reuters
     engine: reuters
