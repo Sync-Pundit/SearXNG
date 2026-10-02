@@ -207,6 +207,24 @@ test("container failures produce a retryable service response", async () => {
   assert.deepEqual(await response.json(), { error: "SearXNG is starting or unavailable" });
 });
 
+test("container startup responses are retryable without masking application errors", async () => {
+  const startup = await routeRequest(request("/"), {}, () => ({
+    async fetch() {
+      return new Response("Error proxying request to container: The container is not running, consider calling start()", { status: 500 });
+    },
+  }));
+  assert.equal(startup.status, 503);
+  assert.equal(startup.headers.get("Retry-After"), "2");
+
+  const applicationError = await routeRequest(request("/"), {}, () => ({
+    async fetch() {
+      return new Response("Application error", { status: 500 });
+    },
+  }));
+  assert.equal(applicationError.status, 500);
+  assert.equal(await applicationError.text(), "Application error");
+});
+
 test("proxy classification does not treat HTML as machine JSON", () => {
   assert.equal(internals.isJsonSearch(request("/search?q=test"), new URL(request("/search?q=test").url)), false);
   assert.equal(internals.isJsonSearch(request("/search?q=test&format=json"), new URL(request("/search?q=test&format=json").url)), true);

@@ -108,6 +108,15 @@ export async function routeRequest(request, env = {}, containerFactory) {
   const started = performance.now();
   try {
     const response = await containerFactory().fetch(proxiedRequest(request, env));
+    if (response.status === 500) {
+      const message = await response.clone().text();
+      if (message.startsWith("Error proxying request to container: The container is not running")) {
+        return json({ error: "SearXNG is starting or unavailable" }, 503, {
+          "Retry-After": "2",
+          "Server-Timing": `edge;dur=${(performance.now() - started).toFixed(1)}`,
+        });
+      }
+    }
     const headers = new Headers(response.headers);
     headers.append("Server-Timing", `edge;dur=${(performance.now() - started).toFixed(1)}`);
     return new Response(response.body, {
