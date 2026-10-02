@@ -196,7 +196,11 @@ def _preview(page: bytes, source: str) -> tuple[str, str] | None:
         return None
 
     title_nodes = document.xpath("//*[@id='firstHeading'] | //main//h1 | //h1")
-    title = " ".join(title_nodes[0].text_content().split()) if title_nodes else ""
+    title = (
+        " ".join(" ".join(title_nodes[0].xpath(".//text()[not(ancestor::button)]")).split())
+        if title_nodes
+        else ""
+    )
     if source == "GitHub":
         sections = document.xpath(
             "//article[contains(concat(' ', normalize-space(@class), ' '), ' markdown-body ')]"

@@ -26,6 +26,7 @@ gh-pages/
 /cloudflare/.assets/
 /cloudflare/.dev.vars*
 /output/
+/.codex/
 
 .idea/
 

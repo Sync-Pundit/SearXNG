@@ -75,8 +75,9 @@ class ResultPreviewTest(unittest.TestCase):
             ),
             (
                 "https://docs.rs/serde/latest/serde/",
-                '<h1>Serde</h1><div class="docblock"><p>Serialize Rust values.</p></div>',
-                "docs.rs: Serde",
+                '<h1>Module <span>ser</span> <button>Copy item path</button></h1>'
+                '<div class="docblock"><p>Serialize Rust values.</p></div>',
+                "docs.rs: Module ser",
             ),
         )
         for url, markup, expected_title in cases:

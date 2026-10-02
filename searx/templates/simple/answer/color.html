@@ -1,0 +1,7 @@
+<div class="color-answer" data-color-answer>
+  <label for="color-answer-picker">{{ _('Pick a color') }}</label>
+  <input id="color-answer-picker" type="color" value="{{ answer.answer }}" aria-label="{{ _('Pick a color') }}">
+  <output id="color-answer-value" for="color-answer-picker">{{ answer.answer }}</output>
+  <button id="color-answer-copy" class="button" type="button" data-copied-text="{{ _('Copied') }}" data-select-text="{{ _('Select the value to copy') }}">{{ _('Copy hex') }}</button>
+  <span id="color-answer-status" role="status" aria-live="polite"></span>
+</div>

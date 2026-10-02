@@ -14,6 +14,26 @@ const categoryButtons: HTMLButtonElement[] = Array.from(
   document.querySelectorAll<HTMLButtonElement>("#categories_container button.category")
 );
 
+const colorPicker = document.querySelector<HTMLInputElement>("#color-answer-picker");
+const colorValue = document.querySelector<HTMLOutputElement>("#color-answer-value");
+const colorCopy = document.querySelector<HTMLButtonElement>("#color-answer-copy");
+const colorStatus = document.querySelector<HTMLElement>("#color-answer-status");
+
+if (colorPicker && colorValue && colorCopy && colorStatus) {
+  listen("input", colorPicker, () => {
+    colorValue.value = colorPicker.value;
+    colorStatus.textContent = "";
+  });
+  listen("click", colorCopy, async () => {
+    try {
+      await navigator.clipboard.writeText(colorPicker.value);
+      colorStatus.textContent = colorCopy.dataset.copiedText || "Copied";
+    } catch {
+      colorStatus.textContent = colorCopy.dataset.selectText || "Select the value to copy";
+    }
+  });
+}
+
 // focus search input on large screens
 if (!(isMobile || isResultsPage)) {
   searchInput.focus();

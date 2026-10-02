@@ -50,6 +50,10 @@ plugins:
     active: true
   searx.plugins.result_preview.SXNGPlugin:
     active: true
+  searx.plugins.color_picker.SXNGPlugin:
+    active: true
+  searx.plugins.synonym_answer.SXNGPlugin:
+    active: true
   searx.plugins.unit_converter.SXNGPlugin:
     active: true
   searx.plugins.ahmia_filter.SXNGPlugin:

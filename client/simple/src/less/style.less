@@ -682,6 +682,28 @@ summary.title {
   .answer-url {
     margin: 5px 10px 10px auto;
   }
+
+  .color-answer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+
+    input[type="color"] {
+      width: 3rem;
+      height: 2.5rem;
+      cursor: pointer;
+    }
+
+    output {
+      font-family: monospace;
+      user-select: all;
+    }
+
+    #color-answer-status {
+      min-width: 4rem;
+    }
+  }
 }
 
 #infoboxes {

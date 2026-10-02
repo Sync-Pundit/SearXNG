@@ -30,6 +30,8 @@ rejected because the edge gate cannot safely classify a format hidden in a
 form body; the SearXNG method preference is therefore locked to `GET`.
 Client-supplied forwarding headers are also discarded. The private Container
 receives `X-Real-IP` only from Cloudflare's `CF-Connecting-IP` header.
+SearXNG derives share and feed URLs from the incoming host; the repository
+does not pin a deployment hostname.
 
 `GET /healthz` is answered at the edge and does not wake the Container.
 
@@ -108,7 +110,6 @@ Cloudflare Workers Builds deploys pushes to `cloudflare-deploy`. Do not deploy
 this Worker manually.
 
 - Worker: `searxng`
-- URL: `https://searxng.pundit.workers.dev/`
 - Production branch: `cloudflare-deploy`
 - Root directory: `/cloudflare`
 - Build command: `npm ci && npm test && npm run check`
@@ -124,6 +125,7 @@ Optional provider secrets:
 
 - `BRAVE_API_KEY`
 - `SERPER_API_KEY`
+- `STACKEXCHANGE_API_KEY` for accepted-answer previews
 
 Cloudflare owns the dedicated `searxng` build token. Do not copy a local
 Wrangler OAuth token into GitHub.
