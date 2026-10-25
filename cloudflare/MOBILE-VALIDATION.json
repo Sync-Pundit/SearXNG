@@ -16,6 +16,10 @@
         "status": "passed"
       },
       {
+        "name": "Category swipes navigate native forms without hijacking scrolling, viewers or browser edges",
+        "status": "passed"
+      },
+      {
         "name": "All preference sections and engine categories remain available with mobile-sized controls",
         "status": "passed"
       },
@@ -49,9 +53,8 @@
       }
     ],
     "limitations": [
-      "Real Flask/Jinja with deterministic provider fixtures.",
-      "Keyboard occlusion and Share are test doubles; physical phone/browser testing remains pending.",
-      "Gecko/WebKit could not be certified in this execution environment."
+      "Real Flask rendering with deterministic result/provider fixtures.",
+      "Gecko/WebKit and physical touch, keyboard, native sharing and screen readers remain device checks."
     ],
     "browser_version": "154.0.8037.57",
     "route_viewport_combinations": 185,
@@ -69,6 +72,7 @@
       "torrent"
     ],
     "alignment_viewports": 4,
+    "category_swipes": "Native button and checkbox forms, query/filters, Back, RTL, bounds and gesture exclusions passed",
     "preference_sections": 6,
     "engine_categories": 11,
     "palettes": [
@@ -447,8 +451,8 @@
     "Native keyboard, Share, browser gestures and screen reader use"
   ],
   "asset_sha256": {
-    "mobile.js": "4aa46cd5f1b0b1281ce8cacaf29a6936ab7463c4fc02f13eaf9ca2f3c9d5ada9",
-    "mobile.css": "d8af7afeb350719681251521c3bc0dd9a19927db08f9b43f0c9f0bf69da9ef18"
+    "mobile.js": "04c05e4ef2de5a5087094b527cc23ab11c295f1ff9caca49c6e10e95ecf1c35f",
+    "mobile.css": "b6c58598a81350b66724010fe3766fc7c4065847a692d2335cdbc2ac51f86818"
   },
   "alignment_follow_up": {
     "validated_at": "2026-10-25T21:52:23.536985+00:00",
@@ -480,5 +484,27 @@
       "source_assets_match": true,
       "script_errors": []
     }
+  },
+  "swipe_follow_up": {
+    "validated_at": "2026-10-25T22:08:28.996211+00:00",
+    "status": "Passed local regression checks and hosted touch navigation.",
+    "browser_groups": 11,
+    "route_viewport_combinations": 185,
+    "input_method": "Chromium CDP touch events; physical phone testing pending",
+    "native_image_viewer": "Horizontal swipe changes selected image, retains images category",
+    "query_storage_added": false,
+    "verified_at": "2026-10-25T22:18:18.487913+00:00",
+    "preview": "https://searxng-mobile-preview.syncpundit.chatgpt.site",
+    "deployment_id": "appgdep_6ade7fa068ac81919dac6d9deeb80f0b",
+    "site_source_commit": "72e68ba98683fa3931c6270826dfcdb785e9a1a6",
+    "live_browser": {
+      "engine": "Chromium",
+      "real_general_to_images": true,
+      "real_images_to_general": true,
+      "query_and_filters_retained": true,
+      "browser_back": true,
+      "script_errors": []
+    },
+    "cold_load": "Category selection is set explicitly before native form submission; it does not depend on the core click handler."
   }
 }

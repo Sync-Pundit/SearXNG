@@ -78,6 +78,40 @@ const pages=['/','/preferences','/info/en/about','/info/en/search-syntax','/stat
    assert.deepEqual(p.errors,[]);checks++;await c.close();
   }report.alignment_viewports=checks;
  });
+ await run('Category swipes navigate native forms without hijacking scrolling, viewers or browser edges',async()=>{
+  const c=await context(browser),p=await open(c,'/search?q=swipe+test&categories=general&language=en&time_range=week&safesearch=2&pageno=3');
+  const cdp=await c.newCDPSession(p);
+  async function drag(selector,dx,dy=0,startX){
+   const target=p.locator(selector).first();await target.scrollIntoViewIfNeeded();const box=await target.boundingBox();
+   const x=startX??Math.max(50,Math.min(330,box.x+box.width/2)),y=Math.max(270,Math.min(700,box.y+box.height/2));
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+   for(let i=1;i<=10;i++)await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+dx*i/10,y:y+dy*i/10}]});
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  }
+  async function change(category,dx){
+   await Promise.all([p.waitForURL(u=>u.searchParams.get('categories')===category&&!u.hash),drag('#urls article.result',dx)]);await p.locator('body.sx-enhanced').waitFor();
+   const u=new URL(p.url());assert.equal(u.searchParams.get('q'),'swipe test');assert.equal(u.searchParams.get('language'),'en');assert.equal(u.searchParams.get('time_range'),'week');assert.equal(u.searchParams.get('safesearch'),'2');assert(!u.searchParams.has('pageno'),'New category starts at page one');
+   assert.equal(await p.locator('#categories button.selected').textContent().then(s=>s.trim().toLowerCase()),category);
+  }
+  await change('images',-120);await change('videos',-120);await change('images',120);
+  await p.goBack();await p.locator('body.sx-enhanced').waitFor();assert.equal(new URL(p.url()).searchParams.get('categories'),'videos');assert.equal((await p.locator('#categories button.selected').textContent()).trim().toLowerCase(),'videos');await change('images',120);
+  // Repeated native swipes on the closed image grid must switch categories, not open a picture.
+  await change('general',120);
+  let requests=0;p.on('request',r=>{if(new URL(r.url()).pathname==='/search')requests++;});
+  for(const [dx,dy,startX] of [[120,0],[40,0],[-30,-140],[-120,0,5]]){await drag('#urls article.result',dx,dy,startX);assert.equal(new URL(p.url()).searchParams.get('categories'),'general');}
+  assert.equal(requests,0,'Boundary, short, vertical and edge gestures do not search');
+  await go(p,'/search?q=swipe+test&categories=social+media');await drag('#urls article.result',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'social media','Last category does not wrap');
+  await go(p,'/search?q=fixture:code&categories=it');await drag('.codelines',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'it');
+  await go(p,'/search?q=fixture:map&categories=map');await p.locator('.btn-collapse').click();await drag('.osm-map-box',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'map');
+  await go(p,'/search?q=fixture:images&categories=images');await p.locator('.result-images>a').first().click();await p.locator('.detail[role=dialog]').waitFor();await drag('.detail .result-images-source',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'images');assert.equal(new URL(p.url()).hash,'#image-viewer');assert(await p.locator('.detail[role=dialog]').isVisible());await p.goBack();
+  await c.addCookies([{name:'search_on_category_select',value:'0',url:base}]);await go(p,'/search?q=swipe+test&categories=general');assert(await p.locator('#categories input[type=checkbox]').count()>0);await Promise.all([p.waitForURL(u=>u.searchParams.get('category_images')==='on'||u.searchParams.get('categories')==='images'),drag('#urls article.result',-120)]);await p.locator('body.sx-enhanced').waitFor();assert.equal(await p.locator('#categories input[name=category_images]').isChecked(),true);await c.clearCookies();
+  await c.addCookies([{name:'locale',value:'ar',url:base}]);await go(p,'/search?q=swipe+test&categories=general&locale=ar');await Promise.all([p.waitForURL(u=>u.searchParams.get('categories')==='images'),drag('#urls article.result',120)]);await p.locator('body.sx-enhanced').waitFor();assert.equal(await p.locator('html').getAttribute('dir'),'rtl');await c.clearCookies();
+  await go(p,'/search?q=swipe+test&categories=general');await p.evaluate(()=>{const box=document.createElement('div');box.id='swipe-nested-scroll';box.style.cssText='overflow-x:auto;height:80px;width:100%';const inner=document.createElement('div');inner.style.cssText='width:1500px;height:80px';inner.textContent='Horizontally scrollable evidence';box.append(inner);document.querySelector('#urls article').prepend(box);});await drag('#swipe-nested-scroll',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'general');assert((await p.locator('#swipe-nested-scroll').evaluate(n=>n.scrollLeft))>0);
+  await go(p,'/search?q=swipe+test&categories=general');await p.evaluate(()=>__viewport({height:851,offsetTop:0,scale:2}));await drag('#urls article.result',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'general');await p.evaluate(()=>__viewport(null));
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:150,y:480},{x:250,y:480}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});assert.equal(new URL(p.url()).searchParams.get('categories'),'general');
+  await p.setViewportSize({width:1440,height:1000});await drag('#urls article.result',-120);assert.equal(new URL(p.url()).searchParams.get('categories'),'general');
+  assert.deepEqual(p.errors,[]);report.category_swipes='Native button and checkbox forms, query/filters, Back, RTL, bounds and gesture exclusions passed';await c.close();
+ });
  await run('All preference sections and engine categories remain available with mobile-sized controls',async()=>{
   const c=await context(browser),p=await open(c,'/preferences');let sections=0,categories=0;
   for(const id of ['general','ui','privacy','engines','query','cookies']){

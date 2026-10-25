@@ -242,6 +242,77 @@ if(configElement){
   detail.querySelector('.result-detail-close')?.focus({preventScroll:true});
  }
  const results=document.getElementById('results');if(results)new MutationObserver(()=>requestAnimationFrame(imageState)).observe(results,{attributes:true,subtree:true,attributeFilter:['class','data-vim-selected']});
+ // Navigate categories with deliberate one-finger swipes on result content.
+ // Touch events let vertical scrolling, pinch zoom and nested horizontal widgets stay native.
+ if(endpoint==='results'&&results&&search){
+  const rail=document.getElementById('categories_container');
+  const categoryControls=[...rail.querySelectorAll('button.category,input[type=checkbox][name^="category_"]')].filter(el=>!el.disabled);
+  const selected=el=>el.matches('button')?el.classList.contains('selected'):el.checked;
+  const originalSelection=categoryControls.map(selected);
+  const feedback=node('div','sx-swipe-preview sx-mobile-only');feedback.hidden=true;feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite');body.append(feedback);
+  let gesture=null,changing=false,suppressClickUntil=0;
+  function centerCategory(){
+   const current=categoryControls.find(selected);if(!compact.matches||!current)return;
+   const item=(current.matches('input')?current.nextElementSibling:current).getBoundingClientRect(),bounds=rail.getBoundingClientRect();
+   rail.scrollBy({left:item.left+item.width/2-bounds.left-bounds.width/2,behavior:'instant'});
+  }
+  function busy(value){changing=value;results.setAttribute('aria-busy',String(value));}
+  function resetGesture(){gesture=null;if(!changing)feedback.hidden=true;}
+  function reserved(target){
+   if(target.closest('input,textarea,select,button,[contenteditable]:not([contenteditable=false]),[role=slider],pre,code,.codelines,.osm-map-box,.leaflet-container,.swipe-horizontal,.embedded-video,.embedded-content,.embedded-audio,video,audio,iframe,canvas,.btn-collapse'))return true;
+   for(let el=target;el&&el!==results;el=el.parentElement){
+    const overflow=getComputedStyle(el).overflowX;
+    if(/auto|scroll/.test(overflow)&&el.scrollWidth>el.clientWidth+1)return true;
+   }return false;
+  }
+  function destination(dx){
+   const current=categoryControls.findIndex(selected);if(current<0)return null;
+   const direction=(dx<0?1:-1)*(document.documentElement.dir==='rtl'?-1:1);
+   return categoryControls[current+direction]||null;
+  }
+  results.addEventListener('touchstart',e=>{
+   resetGesture();const touch=e.touches[0],selection=getSelection();
+   if(!compact.matches||changing||sheet.open||results.classList.contains('image-detail-open')||e.touches.length!==1||(window.visualViewport?.scale||1)>1.05||selection&&!selection.isCollapsed||reserved(e.target))return;
+   // Leave both edges to browser/system navigation gestures.
+   if(touch.clientX<24||touch.clientX>innerWidth-24)return;
+   gesture={id:touch.identifier,x:touch.clientX,y:touch.clientY,time:performance.now(),horizontal:false};
+  },{passive:true});
+  results.addEventListener('touchmove',e=>{
+   if(!gesture)return;
+   if(e.touches.length!==1||getSelection()?.isCollapsed===false){resetGesture();return;}
+   const touch=[...e.touches].find(t=>t.identifier===gesture.id);if(!touch){resetGesture();return;}
+   const dx=touch.clientX-gesture.x,dy=touch.clientY-gesture.y;
+   if(!gesture.horizontal){
+    if(Math.abs(dy)>12&&Math.abs(dy)>=Math.abs(dx)){resetGesture();return;}
+    if(Math.abs(dx)<12||Math.abs(dx)<Math.abs(dy)*1.6)return;
+    if(!destination(dx)){resetGesture();return;}gesture.horizontal=true;
+   }
+   if(e.cancelable)e.preventDefault();
+   const next=destination(dx);feedback.hidden=!next;
+   if(next){const label=next.matches('input')?next.nextElementSibling:next;const text=label.textContent.trim();if(feedback.textContent!==text)feedback.textContent=text;}
+  },{passive:false});
+  results.addEventListener('touchend',e=>{
+   if(!gesture)return;const start=gesture,touch=[...e.changedTouches].find(t=>t.identifier===start.id);resetGesture();
+   if(!touch||e.touches.length||!start.horizontal||!compact.matches||sheet.open||results.classList.contains('image-detail-open'))return;
+   const dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+   if(Math.abs(dx)<Math.max(64,Math.min(innerWidth*.18,100))||Math.abs(dx)<Math.abs(dy)*1.6||performance.now()-start.time>1000)return;
+   const next=destination(dx);if(!next)return;
+   if(e.cancelable)e.preventDefault();suppressClickUntil=performance.now()+450;busy(true);feedback.textContent=(next.matches('input')?next.nextElementSibling:next).textContent.trim();feedback.hidden=false;
+   // Set selection before submit: the core click handler may still be loading on a cold visit.
+   for(const control of categoryControls){if(control.matches('button'))control.classList.toggle('selected',control===next);else control.checked=control===next;}
+   const nativeSelection=rail.querySelector('#selected-categories');if(nativeSelection)nativeSelection.value=next.name.slice('category_'.length);
+   centerCategory();search.requestSubmit(next.matches('button')?next:undefined);
+  },{passive:false});
+  results.addEventListener('touchcancel',resetGesture,{passive:true});
+  results.addEventListener('click',e=>{if(performance.now()<suppressClickUntil){e.preventDefault();e.stopImmediatePropagation();}},true);
+  compact.addEventListener('change',resetGesture);
+  window.addEventListener('pageshow',e=>{
+   busy(false);resetGesture();suppressClickUntil=0;
+   if(e.persisted){categoryControls.forEach((control,i)=>{if(control.matches('button'))control.classList.toggle('selected',originalSelection[i]);else control.checked=originalSelection[i];});const nativeSelection=rail.querySelector('#selected-categories');if(nativeSelection)nativeSelection.value=categoryControls.filter(selected).map(control=>control.name.slice('category_'.length)).join(',');}
+   requestAnimationFrame(centerCategory);
+  });
+  requestAnimationFrame(centerCategory);
+ }
  window.addEventListener('hashchange',()=>requestAnimationFrame(imageState));compact.addEventListener('change',imageState);
  document.addEventListener('keydown',e=>{
   if(!activeImage)return;

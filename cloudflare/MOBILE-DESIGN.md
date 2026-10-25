@@ -47,7 +47,7 @@ restoration. Input font sizes avoid iOS focus zoom. Dock visibility follows
 actual visual-viewport keyboard occlusion, not touch-down; the tapped search
 field stays in position before the keyboard opens. Safe areas, short viewports,
 landscape and pinch zoom have explicit handling. The document scrolls normally.
-No horizontal drag gesture competes with page scrolling.
+Category navigation recognizes deliberate horizontal swipes; vertical scrolling and nested horizontal widgets retain their native gestures.
 
 Native Share is used when available; Copy link has a selectable-text fallback.
 New controls use gettext in the repository template. The CSS uses the selected
@@ -124,3 +124,25 @@ LTR/RTL preferences and safe rendering of a legacy social biography. Checking
 only document width had missed these failures. The updated full browser suite
 passes 185 route/viewport combinations and ten interaction groups. Python
 validation includes three new Mastodon adapter cases (81 tests total).
+
+## Result-category swipes
+
+On mobile result pages, swipe left for the next category and right for the
+previous one (directions follow visual order in RTL). Navigation sets the native category selection before submitting its original
+form, retains query and filters, and starts the new category on page one. This
+also works when the core click handler has not finished loading. The active chip is centered without moving the page vertically. A
+small category label confirms intent during the gesture and navigation. No
+searches are prefetched or stored.
+
+The gesture stops at either boundary. It reserves the outer 24px for browser
+navigation, rejects short/vertical drags, text selections, multitouch and zoomed
+panning, and yields to form controls, open sheets/viewers, maps, media, code and
+scrollable evidence. Closed image-grid tiles support category swipes; inside the
+image viewer, swipes continue to change images. Desktop is unchanged. Checkbox
+category mode also submits the original form. Browser page restoration clears
+the pending state and restores the category belonging to that result page.
+
+Codex added CDP touch-event checks for native form navigation, preserved filters,
+Back, RTL, image viewers, code/maps, nested horizontal scrolling, gesture bounds,
+zoom/multitouch and desktop. The full suite now has eleven passing groups;
+physical phone/browser testing remains a hands-on check.
