@@ -189,9 +189,21 @@ if(configElement){
    container.append(copy,share,feedback);
   });
  }
+ function plainSocialSnippet(article){
+  const engines=[...article.querySelectorAll('.engines span')].map(el=>el.textContent).join(' ');
+  const content=article.querySelector('p.content');
+  if(!/mastodon/i.test(engines)||!content||!/<(?:p|br|a|span)\b/i.test(content.textContent))return;
+  // Template contents are inert. Only extracted text is inserted into the live page.
+  const template=document.createElement('template');template.innerHTML=content.textContent;
+  template.content.querySelectorAll('script,style,iframe,object,embed').forEach(el=>el.remove());
+  template.content.querySelectorAll('br').forEach(el=>el.replaceWith(document.createTextNode(' ')));
+  template.content.querySelectorAll('p,div,li').forEach(el=>el.append(document.createTextNode(' ')));
+  content.textContent=template.content.textContent.replace(/\s+/g,' ').trim();
+ }
  function enhanceResults(){
   for(const article of document.querySelectorAll('#urls article.result:not(.result-images)')){
    if(article.querySelector('.sx-result-more')||!article.querySelector('h3 a[href]'))continue;
+   plainSocialSnippet(article);
    article.classList.toggle('sx-has-thumbnail',Boolean(article.querySelector('.thumbnail_link')));
    const more=button('⋯','sx-result-more sx-mobile-only',()=>resultActions(article,more));more.setAttribute('aria-label',L.details+': '+article.querySelector('h3').textContent.trim());article.append(more);
   }

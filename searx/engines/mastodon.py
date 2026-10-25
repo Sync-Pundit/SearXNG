@@ -19,6 +19,10 @@ for users, accounts or other types of content on Mastodon however.
 from urllib.parse import urlencode
 from datetime import datetime
 
+from lxml import html
+
+from searx.utils import extract_text
+
 about = {
     "website": 'https://joinmastodon.org/',
     "wikidata_id": 'Q27986619',
@@ -47,6 +51,18 @@ def request(query, params):
     return params
 
 
+def _account_note_to_text(note):
+    if not note:
+        return ""
+    tree = html.fragment_fromstring(note, create_parent='div')
+    for element in tree.xpath('.//script | .//style | .//iframe | .//object | .//embed'):
+        element.drop_tree()
+    # Preserve word boundaries around paragraphs and HTML void line-break elements.
+    for element in tree.xpath('.//p | .//div | .//li | .//br'):
+        element.tail = ' ' + (element.tail or '')
+    return extract_text(tree)
+
+
 def response(resp):
     results = []
 
@@ -58,7 +74,7 @@ def response(resp):
                 {
                     'url': result['uri'],
                     'title': result['username'] + f" ({result['followers_count']} followers)",
-                    'content': result['note'],
+                    'content': _account_note_to_text(result['note']),
                     'thumbnail': result.get('avatar'),
                     'publishedDate': datetime.fromisoformat(result['created_at'][:10]),
                 }

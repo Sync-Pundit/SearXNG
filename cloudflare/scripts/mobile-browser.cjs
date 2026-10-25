@@ -26,7 +26,7 @@ async function preferenceSection(p,id){
  const text=await p.locator(`label[for="tab-${id}"]`).textContent();await p.locator('#search_form>.sx-tab-picker').click();await p.locator('.sx-sheet-choice').filter({hasText:new RegExp('^'+text.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')}).click();await p.locator('#tab-content-'+id).waitFor({state:'visible'});
 }
 const templates=['default','images','videos','map','code','paper','file','keyvalue','products','packages','torrent'];
-const pages=['/','/preferences','/info/en/about','/info/en/search-syntax','/stats','/stats?engine=google','/stats?empty=1','/missing-mobile-page',...['de','it','id','fa-IR','fr'].flatMap(locale=>['about','search-syntax'].map(name=>'/info/'+locale+'/'+name)),...templates.map(t=>'/search?q=fixture:'+t),...['all','answers','color','translations','weather','empty','partial'].map(t=>'/search?q=fixture:'+t)];
+const pages=['/','/preferences','/info/en/about','/info/en/search-syntax','/stats','/stats?engine=google','/stats?empty=1','/missing-mobile-page',...['de','it','id','fa-IR','fr'].flatMap(locale=>['about','search-syntax'].map(name=>'/info/'+locale+'/'+name)),...templates.map(t=>'/search?q=fixture:'+t),...['all','answers','color','translations','weather','empty','partial','alignment'].map(t=>'/search?q=fixture:'+t)];
 (async()=>{
  const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});report.browser_version=browser.version();
  try{
@@ -41,6 +41,42 @@ const pages=['/','/preferences','/info/en/about','/info/en/search-syntax','/stat
     assert.deepEqual(p.errors,[],route);combinations++;
    }await c.close();
   }report.route_viewport_combinations=combinations;report.templates=templates;
+ });
+ await run('Reported alignment: map values, result thumbnails, footers, switches and focused search controls',async()=>{
+  let checks=0;
+  for(const width of [320,393,430,851]){
+   const c=await context(browser,{viewport:{width,height:851}}),p=await open(c,'/search?q=fixture:map');
+   const values=await p.locator('.result-map td').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().width));
+   assert(values.length>=3);assert(values.every(w=>w>width*.5),'Map values must have reading width, not a narrow sliver');
+   await go(p,'/search?q=fixture:alignment');assert.equal(await p.evaluate(()=>Boolean(window.__snippetExecuted)),false);
+   const bio=await p.locator('p.content').first().textContent();assert(!bio.includes('<p>'));assert(bio.includes('Canadian living in #Alberta.'));assert(!bio.includes('window.__snippetExecuted'));assert.equal(await p.locator('p.content img,p.content script').count(),0);
+   for(const article of await p.locator('.sx-has-thumbnail').all()){
+    const image=await article.locator('.thumbnail_link').boundingBox(),heading=await article.locator('h3').boundingBox(),url=await article.locator('.url_header').boundingBox(),content=await article.locator('p.content').boundingBox();
+    assert(Math.abs(image.y-heading.y)<2,'Thumbnail follows title row');assert(image.y>=url.y+url.height);assert(content.y>=Math.max(image.y+image.height,heading.y+heading.height),'Description clears title and thumbnail');
+   }
+   for(const article of await p.locator('#urls article.result').all()){
+    const source=await article.locator('.engines span').first().boundingBox(),cached=await article.locator('.cache_link').boundingBox();
+    assert(Math.abs(source.y+source.height/2-cached.y-cached.height/2)<2,'Footer source/cache share a baseline');
+    const host=await article.locator('.url_o1').boundingBox(),path=await article.locator('.url_o2').boundingBox();if(path)assert(Math.abs(host.x-path.x)<1,'URL path starts under hostname');
+   }
+   for(const route of ['/','/search?q=fixture:default']){
+    await go(p,route);const field=p.locator('#q'),before=await field.boundingBox();await field.focus();const after=await field.boundingBox();assert(Math.abs(before.y-after.y)<1);assert(Math.abs(before.x-after.x)<1);
+    const box=await p.locator('.search_box').boundingBox(),clear=await p.locator('#clear_search').boundingBox(),send=await p.locator('#send_search').boundingBox();
+    assert(box.height<70);assert(clear.x>=box.x&&clear.x+clear.width<=send.x+1);assert(send.x+send.width<=width);assert(after.x+after.width<=clear.x+1);
+    await p.evaluate(()=>__viewport({height:320,offsetTop:0,scale:1}));assert((await p.locator('#send_search').boundingBox()).x+send.width<=width);await field.blur();await p.evaluate(()=>__viewport(null));
+   }
+   for(const locale of ['en','ar']){
+    await go(p,'/preferences?locale='+locale);
+    const toggles=p.locator('#tab-content-general input.checkbox-onoff:visible');assert(await toggles.count()>0);
+    for(const toggle of await toggles.all()){
+     const rect=await toggle.boundingBox();assert(rect.height>=44);
+     const thumb=await toggle.evaluate(n=>{const s=getComputedStyle(n,'::before');return{x:parseFloat(s.left),y:parseFloat(s.top),width:parseFloat(s.width),height:parseFloat(s.height)}});
+     assert(thumb.x>=0&&thumb.x+thumb.width<=rect.width);assert(thumb.y>=0&&thumb.y+thumb.height<=rect.height);
+    }
+    for(const button of await p.locator('.preferences_back').all())assert.equal(await button.evaluate(n=>getComputedStyle(n).padding),'0px');
+   }
+   assert.deepEqual(p.errors,[]);checks++;await c.close();
+  }report.alignment_viewports=checks;
  });
  await run('All preference sections and engine categories remain available with mobile-sized controls',async()=>{
   const c=await context(browser),p=await open(c,'/preferences');let sections=0,categories=0;

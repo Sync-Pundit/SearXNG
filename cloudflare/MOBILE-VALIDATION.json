@@ -12,6 +12,10 @@
         "status": "passed"
       },
       {
+        "name": "Reported alignment: map values, result thumbnails, footers, switches and focused search controls",
+        "status": "passed"
+      },
+      {
         "name": "All preference sections and engine categories remain available with mobile-sized controls",
         "status": "passed"
       },
@@ -45,12 +49,12 @@
       }
     ],
     "limitations": [
-      "Deterministic provider fixtures rendered by real Flask/Jinja templates.",
-      "Gecko could not start in the execution runtime; WebKit and physical device behavior remain unverified.",
-      "Clipboard/Share and keyboard occlusion are exercised with test doubles; hosted real search, filter apply and Back are separately checked."
+      "Real Flask/Jinja with deterministic provider fixtures.",
+      "Keyboard occlusion and Share are test doubles; physical phone/browser testing remains pending.",
+      "Gecko/WebKit could not be certified in this execution environment."
     ],
     "browser_version": "154.0.8037.57",
-    "route_viewport_combinations": 180,
+    "route_viewport_combinations": 185,
     "templates": [
       "default",
       "images",
@@ -64,6 +68,7 @@
       "packages",
       "torrent"
     ],
+    "alignment_viewports": 4,
     "preference_sections": 6,
     "engine_categories": 11,
     "palettes": [
@@ -387,7 +392,8 @@
         "status": 401,
         "mobile_bootstrap": false
       }
-    ]
+    ],
+    "scope": "Initial design preview evidence; alignment deployment is verified separately below."
   },
   "preview_browser": {
     "engine": "Chromium",
@@ -395,15 +401,17 @@
     "real_search": true,
     "filter_apply": true,
     "context_and_back": true,
-    "script_errors": []
+    "script_errors": [],
+    "scope": "Initial design preview browser evidence."
   },
   "python_unit": {
     "status": "passed",
-    "tests": 78,
+    "tests": 81,
     "suites": [
       "test_preferences",
       "test_webapp",
-      "test_webutils"
+      "test_webutils",
+      "engines.test_mastodon"
     ],
     "note": "Existing mock result-preview errors are logged by the app; unittest reports OK."
   },
@@ -424,7 +432,8 @@
       "stats",
       "mobile module"
     ],
-    "build_note": "Local-only Dockerfile copy mounts the configured proxy CA for dependency installation. TLS verification stays enabled. Product Dockerfile unchanged."
+    "build_note": "Local-only Dockerfile copy mounts the configured proxy CA for dependency installation. TLS verification stays enabled. Product Dockerfile unchanged.",
+    "scope": "Initial design revision; not rebuilt during the alignment follow-up."
   },
   "firefox_gecko": {
     "status": "blocked_by_execution_environment",
@@ -438,7 +447,38 @@
     "Native keyboard, Share, browser gestures and screen reader use"
   ],
   "asset_sha256": {
-    "mobile.js": "de6ff393b415eb2b9477c4122add6a9b17d2236424a654c4c6e06c4a8ee7f353",
-    "mobile.css": "9fcb0d43454a66241a7e88074b69c7ce2d9c9c48b3be7114df65d161b0977b32"
+    "mobile.js": "4aa46cd5f1b0b1281ce8cacaf29a6936ab7463c4fc02f13eaf9ca2f3c9d5ada9",
+    "mobile.css": "d8af7afeb350719681251521c3bc0dd9a19927db08f9b43f0c9f0bf69da9ef18"
+  },
+  "alignment_follow_up": {
+    "validated_at": "2026-10-25T21:52:23.536985+00:00",
+    "browser_groups": 10,
+    "route_viewport_combinations": 185,
+    "alignment_viewports": [
+      320,
+      393,
+      430,
+      851
+    ],
+    "python_tests": 81,
+    "worker_router": "passed",
+    "migration_parity": "passed",
+    "status": "Passed local regression checks and hosted browser verification.",
+    "verified_at": "2026-10-25T21:56:59.184866+00:00",
+    "preview": "https://searxng-mobile-preview.syncpundit.chatgpt.site",
+    "deployment_id": "appgdep_6ade7aa1f1c88191bd490127e6a231a4",
+    "site_source_commit": "f169241c37f515e538a45c30cdfe1b7999462ae6",
+    "live_browser": {
+      "engine": "Chromium",
+      "width": 393,
+      "checks": [
+        "Real map addresses retain reading width",
+        "Real Mastodon biographies display text without markup",
+        "Focused search stays in place with visible submit",
+        "Preference targets and single-surface footer buttons"
+      ],
+      "source_assets_match": true,
+      "script_errors": []
+    }
   }
 }

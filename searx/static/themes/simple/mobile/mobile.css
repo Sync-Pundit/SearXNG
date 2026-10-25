@@ -60,13 +60,16 @@
  .sx-home-intro{font-size:16px;line-height:1.8;max-width:29ch;color:var(--color-base-font);opacity:.8;margin:0 0 28px}
  #main_index #search{margin:0!important;padding:0!important;width:100%!important}
  #main_index #search_header{margin:0!important;padding:0!important;display:block!important}
- #search_view{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+ #search_view{position:relative!important;inset:auto!important;z-index:auto!important;height:auto!important;min-width:0!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;background:transparent!important}
  .search_box{width:100%!important;height:auto!important;min-height:58px;border:1px solid var(--color-search-border)!important;border-radius:18px!important;background:var(--color-search-background)!important;box-shadow:0 8px 22px #101b3608!important;display:flex!important;align-items:center!important;gap:0!important;position:relative}
- #q{min-width:0!important;width:100%!important;height:56px!important;padding:12px 4px 12px 16px!important;border:0!important;box-shadow:none!important;background:transparent!important;font-size:17px!important;line-height:1.5!important;flex:1!important;border-radius:18px;color:var(--color-search-font)!important}
+ #q{min-width:0!important;width:0!important;height:56px!important;padding:12px 4px 12px 16px!important;border:0!important;box-shadow:none!important;background:transparent!important;font-size:17px!important;line-height:1.5!important;flex:1 1 0!important;border-radius:18px;color:var(--color-search-font)!important}
+ .search_box:focus-within{outline:2px solid var(--color-btn-background);outline-offset:2px}
+ #q:focus-visible{outline:none!important}
  #clear_search,#send_search{position:static!important;inset:auto!important;flex:none!important;width:44px!important;min-width:44px!important;height:48px!important;padding:10px!important;margin:0!important;border:0!important;background:transparent!important;color:var(--color-search-font)!important}
  #send_search{border-radius:14px!important;background:var(--color-btn-background)!important;color:var(--color-btn-font)!important;margin-inline-end:5px!important}
  #clear_search svg,#send_search svg{width:21px;height:21px}
  .autocomplete{top:calc(100% + 6px)!important;left:0!important;right:0!important;width:100%!important;border-radius:16px!important;overflow:hidden;z-index:45!important;box-shadow:0 14px 40px #101b3625!important}
+ .autocomplete:not(:has(li)){display:none!important}
  .autocomplete>ul{max-height:min(45vh,360px);overflow:auto;overscroll-behavior:contain;margin:0!important;padding:6px!important}
  .autocomplete li{min-height:48px!important;padding:12px!important;font-size:16px!important;line-height:1.5!important;white-space:normal!important}
  .sx-home-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:28px}
@@ -99,21 +102,33 @@
  .sx-enhanced #results>#sidebar{display:none!important}
  #results>#sidebar{order:5;position:static!important;width:100%!important;margin:0!important;padding:0!important}
  #results article.result:not(.result-images){width:100%!important;max-width:none!important;min-width:0!important;padding:22px 18px 16px!important;margin:0 0 14px!important;border:1px solid var(--color-header-border)!important;border-radius:var(--sx-radius)!important;background:var(--sx-surface)!important;box-shadow:0 4px 16px #101b3603;overflow:hidden!important;position:relative}
- .result .url_wrapper{display:block!important;max-width:calc(100% - 35px);line-height:1.6!important;overflow:hidden;overflow-wrap:anywhere}
- .result .url_header,.result .url_header span{font-size:11px!important;line-height:1.6!important;overflow-wrap:anywhere}
+ /* Keep hostname and path on the same starting edge; native path floats do not fit cards. */
+ .result .url_header{display:flex!important;align-items:flex-start;gap:6px;max-width:calc(100% - 36px);min-width:0}
+ .result .url_wrapper{display:flex!important;flex-direction:column;align-items:flex-start!important;gap:2px;max-width:100%;min-width:0;line-height:1.6!important;overflow:hidden}
+ .result .url_header,.result .url_header span{font-size:11px!important;line-height:1.6!important}
+ .result .url_o1,.result .url_o2{display:block!important;float:none!important;flex:none!important;width:100%;min-width:0;max-width:100%;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;text-align:start!important}
+ .result .url_i1,.result .url_i2{float:none!important;display:inline!important}
+ .result .url_o1:after{display:none!important}
+ .result .url_o2{opacity:.7}
  .result h3{font-size:19px!important;line-height:1.45!important;letter-spacing:-.4px;margin:12px 0!important;overflow-wrap:anywhere}
  .result h3 a{font-weight:620}
  .result p.content,.result .abstract{font-size:14px!important;line-height:1.85!important;overflow-wrap:anywhere;margin:12px 0!important;max-height:none!important}
  .result p.content,.result .abstract{clear:both}
- .result.sx-has-thumbnail .thumbnail_link{float:none!important;position:absolute!important;inset-inline-end:18px;top:72px;width:76px!important;height:76px!important;margin:0!important}
+ /* Put the thumbnail in the title row so its position follows the actual URL height. */
+ #results article.result.sx-has-thumbnail{display:grid!important;grid-template-columns:minmax(0,1fr) 76px;column-gap:14px}
+ .result.sx-has-thumbnail .result_inner{display:contents!important}
+ .result.sx-has-thumbnail>*,.result.sx-has-thumbnail .result_inner>*{grid-column:1/-1;min-width:0}
+ .result.sx-has-thumbnail .result_inner>.url_header{grid-row:1}
+ .result.sx-has-thumbnail .result_inner>h3{grid-column:1;grid-row:2;align-self:start;padding-inline-end:0;min-height:0}
+ .result.sx-has-thumbnail .thumbnail_link{grid-column:2;grid-row:2;align-self:start;float:none!important;position:relative!important;inset:auto!important;width:76px!important;height:76px!important;margin:12px 0 0!important}
  .result.sx-has-thumbnail img.thumbnail{width:76px!important;height:76px!important;margin:0!important;object-fit:cover}
  .result.sx-has-thumbnail img.thumbnail_bg{display:none!important}
  .result .result_inner{max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;overflow:visible!important}
- .result.sx-has-thumbnail h3{padding-inline-end:90px;min-height:80px}
  .result .published_date,.result .metadata{font-size:11px!important;line-height:1.7!important;overflow-wrap:anywhere}
- .result .engines{font-size:10px!important;line-height:1.8!important;display:flex!important;flex-wrap:wrap;gap:4px 8px;float:none!important;clear:both;margin-top:14px}
- .result .engines span{white-space:normal}
- .result .cache_link{min-height:44px;display:inline-flex;align-items:center;font-size:11px!important;margin:0 8px}
+ .result .engines{font-size:10px!important;line-height:1.8!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap;gap:4px 8px;float:none!important;clear:both;width:100%;min-width:0;margin-top:12px;padding:4px 0 0;border-top:1px solid var(--color-header-border)}
+ .result .engines span{white-space:normal;margin:0!important;overflow-wrap:anywhere}
+ .result .engines>svg{display:none}
+ .result .cache_link{min-height:44px;display:inline-flex;align-items:center;font-size:11px!important;margin:0!important;margin-inline-start:auto!important}
  .result .result-thumbnail,.result img.thumbnail{max-width:105px!important;max-height:85px!important;object-fit:cover;border-radius:10px}
  .result .attributes{max-width:100%;display:grid!important;gap:10px!important;margin:14px 0!important;font-size:12px!important;line-height:1.8!important;overflow-wrap:anywhere}
  .result .attributes>div{display:block!important}
@@ -125,6 +140,13 @@
  .result .codelines table{width:max-content!important;min-width:100%}
  .result table:not(.highlighttable){max-width:100%;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
  .result table th,.result table td{padding:8px 6px!important;vertical-align:top}
+ /* Stack map labels above their values instead of letting the label consume the table. */
+ .result-map .result_inner>table,.result-map .result_inner>table>tbody{display:block!important;width:100%!important;min-width:0!important;table-layout:auto!important}
+ .result-map .result_inner>table{margin:14px 0}
+ .result-map .result_inner>table>tbody>tr{display:grid!important;grid-template-columns:minmax(0,1fr);gap:4px;margin:0 0 14px}
+ .result-map .result_inner>table>tbody>tr>th,.result-map .result_inner>table>tbody>tr>td{display:block!important;width:auto!important;min-width:0!important;max-width:100%!important;padding:0!important;text-align:start!important;white-space:normal!important;word-break:normal;overflow-wrap:anywhere}
+ .result-map .result_inner>table th{font-size:11px!important;font-weight:600;opacity:.7}
+ .result-map .result_inner>table td{font-size:14px!important;line-height:1.8!important}
  .result-keyvalue table{table-layout:fixed;width:100%}
  .result-keyvalue .col-key{width:35%!important}
  .result-keyvalue .col-value{overflow-wrap:anywhere!important;word-break:break-word}
@@ -189,7 +211,12 @@
  #main_preferences #categories_container{padding:4px 0!important;flex-wrap:wrap!important;overflow:visible!important}
  #main_preferences #categories .category>label{font-size:11px!important;padding:9px 12px!important}
  #main_preferences .checkbox-onoff+label{min-height:44px}
- #main_preferences .checkbox-onoff{min-width:44px;min-height:28px}
+ /* The input owns a 44px touch target; track and thumb stay inside that target. */
+ #main_preferences input.checkbox-onoff{width:52px!important;min-width:52px!important;height:44px!important;min-height:44px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;vertical-align:middle;border-radius:22px}
+ #main_preferences input.checkbox-onoff:after{content:""!important;position:absolute;inset:8px 0!important;width:52px!important;height:28px!important;border:0!important;border-radius:14px!important;box-shadow:none!important;z-index:0!important;background:var(--color-toolkit-checkbox-onoff-off-background)}
+ #main_preferences input.checkbox-onoff:before{content:"\2715";position:absolute;top:11px!important;left:auto!important;right:auto!important;inset-inline-start:3px!important;width:22px!important;height:22px!important;font-size:12px!important;line-height:1!important;z-index:1;background:var(--color-toolkit-checkbox-onoff-off-mark-background);color:var(--color-toolkit-checkbox-onoff-off-mark-color)}
+ #main_preferences input.checkbox-onoff:not(.reversed-checkbox):checked:after,#main_preferences input.checkbox-onoff.reversed-checkbox:not(:checked):after{background:var(--color-toolkit-checkbox-onoff-on-background)}
+ #main_preferences input.checkbox-onoff:not(.reversed-checkbox):checked:before,#main_preferences input.checkbox-onoff.reversed-checkbox:not(:checked):before{content:"\2713";inset-inline-start:27px!important;background:var(--color-toolkit-checkbox-onoff-on-mark-background);color:var(--color-toolkit-checkbox-onoff-on-mark-color)}
  #main_preferences .sx-engine-search{display:block;width:100%!important;min-height:48px;padding:12px 14px;margin:0 0 16px!important;border:1px solid var(--color-header-border);border-radius:12px;background:var(--sx-surface);color:inherit;font-size:16px}
  #main_preferences #toggle-all-engines-container{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
  #main_preferences #toggle-all-engines-container .button{min-height:44px;padding:10px 14px;border-radius:10px;font-size:11px}
@@ -204,7 +231,7 @@
  .sx-card-table .sx-cell-title>a,.sx-card-table .sx-cell-title>label{display:inline-flex;align-items:center;min-height:44px;max-width:100%;font-size:15px!important;overflow-wrap:anywhere}
  .sx-card-table tr.pref-group{background:transparent!important;border:0!important;padding:16px 0 8px!important;grid-template-columns:1fr!important}
  .sx-card-table tr.pref-group>th{grid-column:1/-1}
- .sx-card-table .sx-cell-toggle{position:absolute!important;top:18px!important;inset-inline-end:14px!important;width:50px!important}
+ .sx-card-table .sx-cell-toggle{position:absolute!important;top:18px!important;inset-inline-end:14px!important;width:52px!important}
  .sx-card-table .sx-cell-toggle:before{display:none!important}
  .sx-card-table .sx-cell-title{padding-inline-end:55px!important}
  .sx-card-table .engine-tooltip{display:none!important}
@@ -220,8 +247,8 @@
  #main_preferences .selectable_url pre{white-space:pre;min-width:0;margin:0}
  #main_preferences h4{font-size:14px;line-height:1.7;margin:24px 0 12px;overflow-wrap:anywhere}
  .sx-enhanced #search_form>input[type=submit]{display:none!important}
- #main_preferences .preferences_back{display:inline-block;float:none!important;max-width:100%;margin:10px 14px 0 0}
- #main_preferences .preferences_back a,#main_preferences #copy-hash{display:inline-flex;align-items:center;min-height:44px;padding:10px 14px;border:1px solid var(--color-header-border);border-radius:12px;font-size:12px}
+ #main_preferences .preferences_back{display:inline-block;float:none!important;max-width:100%;margin:10px 12px 0 0;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+ #main_preferences .preferences_back a,#main_preferences #copy-hash{background:var(--sx-surface);color:var(--color-base-font);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:10px 14px;border:1px solid var(--color-header-border);border-radius:12px;font-size:12px}
  #main_preferences .small_font{font-size:11px;line-height:1.9;margin:18px 0}
  .sx-setting-status{font-size:11px;line-height:1.8;opacity:.7;margin:0 0 18px}
  #main_stats .engine-stats{margin:0!important}

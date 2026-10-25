@@ -97,3 +97,30 @@ English control labels; the repository bootstrap uses gettext.
 The real deployment remains unchanged. Pushing to `cloudflare-deploy` triggers
 production Workers Builds, so this work belongs on `design/mobile-searxng`
 until reviewed. No manual production deploy is part of this design pass.
+
+## Screenshot follow-up: 25 October 2026
+
+Codex corrected the owner-reported alignment failures in the same design branch:
+
+- Focus no longer inherits the upstream full-page search overlay. Query, Clear
+  and Search stay in one bounded row before and after keyboard occlusion.
+- Result thumbnails share the title row in a grid; URL height and long titles no
+  longer invalidate an absolute thumbnail offset. Hostname/path start together.
+- Map labels and values stack, so long addresses retain the card's reading width.
+- Engine provenance and cached links align within a single footer row; its
+  decorative vertical ellipsis is hidden because the card already has actions.
+- Preference switches have a 44px target with their thumb inside the track;
+  reversed checkbox submission semantics remain intact. Reset/Back each have
+  one visible button surface.
+- Mastodon account notes are converted from API HTML to plain result text,
+  preserving paragraph/line boundaries and omitting active markup. An inert
+  text-only client fallback also handles the older live backend used by the
+  private preview. It applies only to Mastodon provenance, not arbitrary code
+  or mathematical result content.
+
+The new regression checks inspect child element bounds, title/thumbnail
+placement, footer baselines, real map cell widths, switch pseudo-elements,
+LTR/RTL preferences and safe rendering of a legacy social biography. Checking
+only document width had missed these failures. The updated full browser suite
+passes 185 route/viewport combinations and ten interaction groups. Python
+validation includes three new Mastodon adapter cases (81 tests total).
