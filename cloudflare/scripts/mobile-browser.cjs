@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Real Flask templates, deterministic provider data. Run against mobile-serve.py.
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+// PLAYWRIGHT_MODULE and CHROMIUM_PATH can point at a normal local installation.
+let playwright;try{playwright=require(process.env.PLAYWRIGHT_MODULE||'playwright');}catch{playwright=require('/opt/codex/cua_node/lib/node_modules/playwright');}
+const {chromium}=playwright;
+const base=process.env.BASE_URL||'http://127.0.0.1:8795';
+const report={engine:'Chromium',groups:[],limitations:['Real Flask rendering with deterministic result/provider fixtures.','Gecko/WebKit and physical touch, keyboard, native sharing and screen readers remain device checks.']};
+async function run(name,fn){if(process.env.MOBILE_TEST_FILTER&&!name.toLowerCase().includes(process.env.MOBILE_TEST_FILTER.toLowerCase()))return;await fn();report.groups.push({name,status:'passed'});console.log('PASS '+name);}
+async function context(browser,options={}){
+ const c=await browser.newContext({viewport:{width:393,height:851},isMobile:true,hasTouch:true,...options});
+ await c.addInitScript(()=>{
+  window.__mobile={copies:[],shares:[]};Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async value=>__mobile.copies.push(value)}});Object.defineProperty(navigator,'share',{configurable:true,value:async data=>__mobile.shares.push(data)});
+  let override=null;const vv=visualViewport;
+  for(const key of ['height','offsetTop','scale']){const read=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(vv),key).get.bind(vv);Object.defineProperty(vv,key,{get:()=>override?.[key]??read()});}
+  window.__viewport=value=>{override=value;vv.dispatchEvent(new Event('resize'));vv.dispatchEvent(new Event('scroll'));};
+ });return c;
+}
+async function open(c,url='/'){
+ const p=await c.newPage();p.setDefaultTimeout(12000);p.errors=[];p.on('pageerror',e=>p.errors.push(e.message));p.on('dialog',d=>d.accept());
+ await p.goto(base+url,{waitUntil:'domcontentloaded'});await p.locator('body.sx-enhanced').waitFor();return p;
+}
+async function go(p,url){const response=await p.goto(base+url,{waitUntil:'domcontentloaded'});assert.equal(response.status(),url==='/missing-mobile-page'?404:200,url);await p.locator('body.sx-enhanced').waitFor();}
+async function closeSheet(p){await p.locator('.sx-sheet-close').click();await p.waitForFunction(()=>!document.querySelector('.sx-sheet').open&&!history.state?.sxMobileSheet);}
+async function preferenceSection(p,id){
+ const text=await p.locator(`label[for="tab-${id}"]`).textContent();await p.locator('#search_form>.sx-tab-picker').click();await p.locator('.sx-sheet-choice').filter({hasText:new RegExp('^'+text.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$')}).click();await p.locator('#tab-content-'+id).waitFor({state:'visible'});
+}
+const templates=['default','images','videos','map','code','paper','file','keyvalue','products','packages','torrent'];
+const pages=['/','/preferences','/info/en/about','/info/en/search-syntax','/stats','/stats?engine=google','/stats?empty=1','/missing-mobile-page',...['de','it','id','fa-IR','fr'].flatMap(locale=>['about','search-syntax'].map(name=>'/info/'+locale+'/'+name)),...templates.map(t=>'/search?q=fixture:'+t),...['all','answers','color','translations','weather','empty','partial'].map(t=>'/search?q=fixture:'+t)];
+(async()=>{
+ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']});report.browser_version=browser.version();
+ try{
+ await run('Every HTML page family, result template and answer state fits phone, tablet and landscape',async()=>{
+  let combinations=0;
+  for(const [width,height] of [[320,640],[393,851],[430,932],[768,1024],[851,393]]){
+   const c=await context(browser,{viewport:{width,height}}),p=await open(c);
+   for(const route of pages){
+    await go(p,route);
+    const metrics=await p.evaluate(()=>({width:document.documentElement.scrollWidth,dock:document.querySelector('.sx-dock').getBoundingClientRect().toJSON()}));
+    assert(metrics.width<=width+1,`${route} at ${width}: ${metrics.width}`);assert(metrics.dock.bottom<=height+1,route);
+    assert.deepEqual(p.errors,[],route);combinations++;
+   }await c.close();
+  }report.route_viewport_combinations=combinations;report.templates=templates;
+ });
+ await run('All preference sections and engine categories remain available with mobile-sized controls',async()=>{
+  const c=await context(browser),p=await open(c,'/preferences');let sections=0,categories=0;
+  for(const id of ['general','ui','privacy','engines','query','cookies']){
+   await preferenceSection(p,id);assert(await p.evaluate(()=>document.documentElement.scrollWidth<=393));
+   const panel=p.locator('#tab-content-'+id);assert(await panel.isVisible());sections++;
+   for(const select of await panel.locator('select:visible').all())assert((await select.boundingBox()).height>=44);
+  }
+  await preferenceSection(p,'engines');
+  const labels=await p.locator('#tab-content-engines>.tabs>label').allTextContents();
+  for(const label of labels){
+   await p.locator('#tab-content-engines>.sx-tab-picker').click();await p.locator('.sx-sheet-choice').filter({hasText:new RegExp('^'+label.trim()+'$','i')}).click();
+   await p.waitForFunction(()=>!history.state?.sxMobileSheet);assert(await p.evaluate(()=>document.documentElement.scrollWidth<=393));categories++;
+  }
+  report.preference_sections=sections;report.engine_categories=categories;assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Mobile filter apply preserves query, categories, language, SafeSearch and page navigation',async()=>{
+  const c=await context(browser),p=await open(c,'/search?q=fixture:default&categories=general&pageno=2');
+  await p.locator('.sx-refine-summary button').click();await p.locator('#sx-filter-time_range').selectOption('week');await p.locator('#sx-filter-safesearch').selectOption('2');await p.locator('#sx-filter-language').selectOption('en');
+  await p.locator('.sx-sheet-apply').click();await p.waitForURL(/time_range=week/);await p.locator('body.sx-enhanced').waitFor();
+  const u=new URL(p.url());assert.equal(u.searchParams.get('q'),'fixture:default');assert.equal(u.searchParams.get('safesearch'),'2');assert.equal(u.searchParams.get('language'),'en');assert.equal(u.searchParams.get('categories'),'general');
+  await p.locator('.sx-page-chooser').click();await p.locator('.sx-pagination-list input[type="submit"][value="3"]').click();await p.waitForURL(/pageno=3/);
+  const next=new URL(p.url());assert.equal(next.searchParams.get('q'),'fixture:default');assert.equal(next.searchParams.get('time_range'),'week');assert.equal(next.searchParams.get('safesearch'),'2');
+  assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Context and action sheets preserve native forms, browser Back, focus and sharing',async()=>{
+  const c=await context(browser),p=await open(c,'/search?q=fixture:default');
+  await p.locator('.sx-dock button').filter({hasText:'Info'}).click();assert(await p.locator('.sx-sheet #sidebar').isVisible());assert(await p.locator('.sx-sheet #apis input[type=submit]').count());
+  await p.goBack();await p.waitForFunction(()=>!document.querySelector('.sx-sheet').open);assert.equal(await p.locator('#results>#sidebar').count(),1);
+  await p.locator('.sx-result-more').first().click();await p.locator('.sx-sheet-choice').filter({hasText:'Copy link'}).click();assert.equal((await p.evaluate(()=>__mobile.copies)).length,1);
+  await p.locator('.sx-sheet-choice').filter({hasText:/^Share$/}).click();assert.equal((await p.evaluate(()=>__mobile.shares)).length,1);await closeSheet(p);
+  assert(await p.locator('.sx-result-more').first().evaluate(n=>document.activeElement===n));
+  await p.locator('.sx-menu').click();assert((await p.locator('.sx-sheet a[href]').count())>=6);await p.keyboard.press('Escape');await p.waitForFunction(()=>!history.state?.sxMobileSheet);
+  assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Engine search, details, bulk actions and preference saving keep the original form contract',async()=>{
+  const c=await context(browser),p=await open(c,'/preferences');await preferenceSection(p,'engines');
+  const panel=p.locator('#tab-content-category_general');await panel.locator('.sx-engine-search').fill('wikipedia');
+  assert.equal(await panel.locator('tr:visible [data-engine-name]').count(),1);const toggle=panel.locator('tr:visible input.checkbox-onoff');
+  await panel.locator('.disable-all-engines').click();assert.equal(await toggle.isChecked(),true);await panel.locator('.enable-all-engines').click();assert.equal(await toggle.isChecked(),false);
+  await panel.locator('.sx-engine-details:visible').click();assert(await p.locator('.sx-sheet .engine-tooltip').isVisible());assert((await p.locator('.sx-sheet a[href]').count())>0);await closeSheet(p);
+  await preferenceSection(p,'general');await p.locator('select[name=language]').selectOption('en');
+  await p.locator('.sx-dock .sx-primary').click();await p.waitForURL(u=>!u.pathname.includes('/preferences'));await go(p,'/preferences');assert.equal(await p.locator('select[name=language]').inputValue(),'en');
+  assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Image preview keeps native swipe/Back behavior, visible exits and keyboard focus',async()=>{
+  const c=await context(browser),p=await open(c,'/search?q=fixture:images');await p.locator('.result-images>a').first().click();await p.waitForURL(/#image-viewer$/);
+  const dialog=p.locator('.detail[role=dialog]');await dialog.waitFor();const rect=await dialog.boundingBox();assert(rect.x>=-1&&rect.width<=394&&rect.y>=-1&&rect.height<=852);
+  assert.equal(await dialog.getAttribute('aria-modal'),'true');assert((await dialog.locator('.result-detail-close').boundingBox()).height>=44);
+  await dialog.locator('.result-detail-next').click();assert.equal(await p.locator('.detail[role=dialog]').count(),1);
+  await p.goBack();await p.waitForFunction(()=>!document.querySelector('#results').classList.contains('image-detail-open'));assert.equal(await p.locator('.sx-dock').evaluate(n=>n.inert),false);
+  assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('All palettes and RTL layouts retain page width and readable native forms',async()=>{
+  const c=await context(browser),p=await open(c,'/preferences');await preferenceSection(p,'ui');const styles=await p.locator('select[name=simple_style] option').evaluateAll(nodes=>nodes.map(n=>n.value).filter(Boolean));
+  for(const style of styles){await go(p,'/search?q=fixture:all&simple_style='+encodeURIComponent(style));assert(await p.evaluate(()=>document.documentElement.scrollWidth<=393),style);}
+  for(const locale of ['ar','fa-IR']){
+   await go(p,'/search?q=fixture:all&locale='+locale);assert.equal(await p.locator('html').getAttribute('dir'),'rtl');assert(await p.evaluate(()=>document.documentElement.scrollWidth<=393),locale);
+   await go(p,'/preferences?locale='+locale);assert(await p.evaluate(()=>document.documentElement.scrollWidth<=393),locale+' preferences');
+  }
+  report.palettes=styles;report.rtl_locales=['ar','fa-IR'];assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Keyboard focus is stable before real occlusion and short viewports retain sheet controls',async()=>{
+  const c=await context(browser),p=await open(c);const input=p.locator('#q'),before=await input.boundingBox(),cdp=await c.newCDPSession(p);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:before.x+30,y:before.y+20}]});const after=await input.boundingBox();assert(Math.abs(after.y-before.y)<1);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  assert.equal(await p.locator('body').evaluate(n=>n.classList.contains('sx-keyboard')),false);
+  await input.fill('An unsubmitted query');await p.evaluate(()=>__viewport({height:320,offsetTop:20,scale:1}));await p.waitForFunction(()=>document.body.classList.contains('sx-keyboard'));assert.equal(await p.locator('.sx-dock').isVisible(),false);
+  await input.blur();await p.evaluate(()=>__viewport(null));await p.waitForFunction(()=>!document.body.classList.contains('sx-keyboard'));assert.equal(await input.inputValue(),'An unsubmitted query');
+  await p.locator('.sx-menu').click();await p.evaluate(()=>__viewport({height:300,offsetTop:20,scale:1}));const close=await p.locator('.sx-sheet-close').boundingBox();assert(close.y>=20-1&&close.y+close.height<=320+1);await closeSheet(p);
+  assert.deepEqual(p.errors,[]);await c.close();
+ });
+ await run('Desktop resize restores native controls and no-JavaScript pages stay navigable',async()=>{
+  const c=await context(browser),p=await open(c,'/preferences');await preferenceSection(p,'engines');await p.setViewportSize({width:1440,height:1000});assert.equal(await p.locator('.sx-dock').isVisible(),false);assert(await p.locator('label[for=tab-engines]').isVisible());assert.equal(await p.locator('.sx-tab-picker').first().isVisible(),false);
+  await go(p,'/search?q=fixture:default');assert(await p.locator('.search_filters select').first().isVisible());assert(await p.locator('#sidebar').isVisible());assert.deepEqual(p.errors,[]);await c.close();
+  const no=await browser.newContext({viewport:{width:393,height:851},javaScriptEnabled:false}),q=await no.newPage();await q.goto(base+'/search?q=fixture:default');assert(await q.locator('.search_filters select').first().isVisible());assert((await q.locator('#urls article.result').count())>0);await no.close();
+ });
+ }finally{await browser.close();}
+ const output=path.resolve(__dirname,'../../output',process.env.MOBILE_TEST_FILTER?'searxng-focused.json':'searxng-mobile-results.json');fs.writeFileSync(output,JSON.stringify(report,null,2)+'\n');
+})().catch(e=>{console.error(e);process.exitCode=1});

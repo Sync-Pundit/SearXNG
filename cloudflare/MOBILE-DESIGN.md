@@ -1,0 +1,99 @@
+# SearXNG mobile design
+
+This review branch starts at `cloudflare-deploy` commit
+`f7e5b0f889aa56c29de5947af21eb334bf1a7cc0`. It adds a mobile interface to
+the retained Simple theme. The Worker request boundary, provider fallback,
+ranking, engine catalog and preference storage are unchanged.
+
+AI disclosure: OpenAI Codex audited the source and live instance, designed and
+implemented these changes, authored fixtures/documentation, and ran validation
+under the instance owner's direction. This is an AI-assisted design branch for
+human review. No upstream issue or pull request has been authored by Codex.
+
+## Page inventory
+
+The audit covers every HTML page family and the supporting route types in
+`searx/webapp.py`, including every Simple-theme result and answer template.
+Non-HTML endpoints remain native services rather than receiving invented UI.
+
+| Surface | Existing routes or states | Mobile treatment |
+| --- | --- | --- |
+| Search start | `/`, form/category selection, autocomplete | Clear search field, six quick category tiles, all categories in a sheet, bottom search access |
+| Results | `/search`; General, Images, Videos, News, Map, Music, IT, Science, Files, Social Media | Sticky query/category rail, compact filter summary, full descriptions, source provenance and result actions |
+| Result layouts | default, images, videos, map, code, paper, file, keyvalue, products, packages, torrent | Appropriate cards, readable metadata, contained horizontal code scrolling, two-column phone image grid |
+| Answers | legacy, color, translations, weather | Inline answers; weather changes from a wide table to labelled rows |
+| Result context | infoboxes, suggestions, corrections, engine errors, timings, search URL, export forms | Context sheet preserves the original DOM, forms and listeners; corrections stay beside results |
+| Result states | mixed layouts, no results, partial engine failure, numbered/previous/next pages | No fabricated result counts; pagination submits original forms with query/filter state |
+| Image viewer | full image, metadata, source links, previous/next, native swipes | Viewport-sized viewer, safe-area controls, focus containment, browser Back; focus restoration avoids reopening the image |
+| Preferences | `/preferences`: General, User interface, Privacy, Engines, Special queries, Cookies | Section chooser, one-column fieldsets, persistent Save, unsaved-edit prompt |
+| Engine preferences | all native category tabs, tokens, enable/disable-all, descriptions | Searchable engine cards retaining every form field and the native reversed-checkbox semantics |
+| Preference transport | POST save, shareable settings URL, preview/import, cookie inspection, reset | Original handlers and forms retained; no additional key or query storage |
+| Instance information | `/info/<locale>/about`, `/info/<locale>/search-syntax`; `/about` redirects | Reading layout, contained examples, bottom Contents navigator |
+| Information translations | en, de, it, id, fr, fa-IR (source directory fa_IR); both documents in each directory | Shared layout; audit checks rendering, not linguistic correctness |
+| Statistics | `/stats`; name/score/result_count/time/reliability sorting, selected engine, error details, empty metrics | Metric cards, Sort sheet and readable technical reports |
+| Missing page | 404 handler | Native error copy plus accessible search/navigation |
+| Discovery and assets | `/manifest.json`, `/opensearch.xml`, `/rss.xsl`, `/logo/<resolution>`, `/favicon.ico`, static assets | Native payloads retained |
+| Browser helpers | `/autocompleter`, `/image_proxy`, `/engine_descriptions.json`, `/clear_cookies`, optional `/client<token>.css` | Native endpoints/validation retained; no new permissions |
+| Machine/operations | `/config`, `/stats/errors`, `/metrics`, `/robots.txt`, `/healthz`, search JSON/CSV/RSS | Existing routes and edge authentication rules retained |
+
+## Interaction contract
+
+The layout changes at 900 CSS pixels. Mobile enhancements wrap existing search
+and preference forms; desktop keeps its native controls. Without JavaScript,
+original navigation, filters, results and preferences remain available.
+
+Sheets use native `dialog`, explicit Close, Escape, browser Back and focus
+restoration. Input font sizes avoid iOS focus zoom. Dock visibility follows
+actual visual-viewport keyboard occlusion, not touch-down; the tapped search
+field stays in position before the keyboard opens. Safe areas, short viewports,
+landscape and pinch zoom have explicit handling. The document scrolls normally.
+No horizontal drag gesture competes with page scrolling.
+
+Native Share is used when available; Copy link has a selectable-text fallback.
+New controls use gettext in the repository template. The CSS uses the selected
+Simple-theme palette, logical spacing and reduced-motion preferences. No
+analytics, search history, offline result cache, device sensors or haptics are
+introduced.
+
+The standalone files live in `searx/static/themes/simple/mobile/`; `base.html`
+includes them. The existing asset-copy step and Container include them without
+rebuilding upstream Vite bundles. Rendering fixtures are developer-only scripts:
+production imports neither `mobile-fixtures.py` nor `mobile-serve.py`.
+
+## Reproducing the checks
+
+Start the fixture server with the repository's Python requirements installed:
+
+```sh
+.venv/bin/python cloudflare/scripts/mobile-serve.py
+```
+
+It renders real Flask/Jinja pages with deterministic provider data. In a second
+terminal run `node cloudflare/scripts/mobile-browser.cjs`. It uses Playwright
+with Chromium and produces ignored `output/searxng-mobile-results.json`.
+`MOBILE_TEST_FILTER` selects a named check. Browser installation/module locations
+can be overridden as documented in the runner.
+
+`mobile-firefox.cjs` supplies a separate Gecko check at phone widths. It could
+not run in this execution environment because Firefox failed to start under
+the available graphics/process-namespace restrictions; it is not reported as
+a passed browser test. Physical Firefox, Safari and Chrome checks remain.
+
+`cloudflare/scripts/audit-mobile-live.py` performs a read-only live inventory.
+Raw HTML/screenshots stay in ignored `output/`, because live diagnostics can
+contain instance-specific information. `MOBILE-VALIDATION.json` records safe
+aggregate evidence and limitations. It deliberately distinguishes synthetic
+layout fixtures from live searches.
+
+## Preview and rollout
+
+The owner-private preview is separate from the real Cloudflare Worker. It adds
+the same CSS/JS to public HTML fetched from the live instance. It forwards only
+explicit SearXNG preference cookies, never Sites authentication or incoming
+Authorization/IP headers. Queries use the existing instance and its providers.
+Preview preferences belong to the preview domain. The preview bootstrap has
+English control labels; the repository bootstrap uses gettext.
+
+The real deployment remains unchanged. Pushing to `cloudflare-deploy` triggers
+production Workers Builds, so this work belongs on `design/mobile-searxng`
+until reviewed. No manual production deploy is part of this design pass.

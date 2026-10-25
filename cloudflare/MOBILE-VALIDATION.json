@@ -1,0 +1,444 @@
+{
+  "validated_at": "2026-10-25T19:34:43.551772+00:00",
+  "base_branch": "cloudflare-deploy",
+  "base_commit": "f7e5b0f889aa56c29de5947af21eb334bf1a7cc0",
+  "design_branch": "design/mobile-searxng",
+  "ai_assistance": "OpenAI Codex: source/live audit, design, implementation, fixtures, tests and documentation; owner-directed work for human review.",
+  "browser": {
+    "engine": "Chromium",
+    "groups": [
+      {
+        "name": "Every HTML page family, result template and answer state fits phone, tablet and landscape",
+        "status": "passed"
+      },
+      {
+        "name": "All preference sections and engine categories remain available with mobile-sized controls",
+        "status": "passed"
+      },
+      {
+        "name": "Mobile filter apply preserves query, categories, language, SafeSearch and page navigation",
+        "status": "passed"
+      },
+      {
+        "name": "Context and action sheets preserve native forms, browser Back, focus and sharing",
+        "status": "passed"
+      },
+      {
+        "name": "Engine search, details, bulk actions and preference saving keep the original form contract",
+        "status": "passed"
+      },
+      {
+        "name": "Image preview keeps native swipe/Back behavior, visible exits and keyboard focus",
+        "status": "passed"
+      },
+      {
+        "name": "All palettes and RTL layouts retain page width and readable native forms",
+        "status": "passed"
+      },
+      {
+        "name": "Keyboard focus is stable before real occlusion and short viewports retain sheet controls",
+        "status": "passed"
+      },
+      {
+        "name": "Desktop resize restores native controls and no-JavaScript pages stay navigable",
+        "status": "passed"
+      }
+    ],
+    "limitations": [
+      "Deterministic provider fixtures rendered by real Flask/Jinja templates.",
+      "Gecko could not start in the execution runtime; WebKit and physical device behavior remain unverified.",
+      "Clipboard/Share and keyboard occlusion are exercised with test doubles; hosted real search, filter apply and Back are separately checked."
+    ],
+    "browser_version": "154.0.8037.57",
+    "route_viewport_combinations": 180,
+    "templates": [
+      "default",
+      "images",
+      "videos",
+      "map",
+      "code",
+      "paper",
+      "file",
+      "keyvalue",
+      "products",
+      "packages",
+      "torrent"
+    ],
+    "preference_sections": 6,
+    "engine_categories": 11,
+    "palettes": [
+      "auto",
+      "light",
+      "dark",
+      "black",
+      "paulgo",
+      "latte",
+      "frappe",
+      "macchiato",
+      "mocha",
+      "kagi",
+      "brave",
+      "moa",
+      "night",
+      "dracula",
+      "gruvbox",
+      "gruvboxmat",
+      "everforest",
+      "evergarden",
+      "nord",
+      "matcha"
+    ],
+    "rtl_locales": [
+      "ar",
+      "fa-IR"
+    ]
+  },
+  "live_audit": {
+    "routes_checked": 47,
+    "routes": [
+      {
+        "path": "/",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/preferences",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/info/en/about",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/info/en/search-syntax",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/about",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats?sort=score",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats?sort=result_count",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats?sort=time",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats?sort=reliability",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats?engine=google",
+        "status": 200,
+        "result_count": 0
+      },
+      {
+        "path": "/stats/errors",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/mobile-audit-missing-page",
+        "status": 404,
+        "result_count": 0
+      },
+      {
+        "path": "/manifest.json",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/opensearch.xml",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/config",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/robots.txt",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/healthz",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=general",
+        "status": 200,
+        "result_count": 20
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=images",
+        "status": 200,
+        "result_count": 105
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=videos",
+        "status": 200,
+        "result_count": 31
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=news",
+        "status": 200,
+        "result_count": 31
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=map",
+        "status": 200,
+        "result_count": 10
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=music",
+        "status": 200,
+        "result_count": 51
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=it",
+        "status": 200,
+        "result_count": 66
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=science",
+        "status": 200,
+        "result_count": 80
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=files",
+        "status": 200,
+        "result_count": 115
+      },
+      {
+        "path": "/search?q=Cape+Town&categories=social+media",
+        "status": 200,
+        "result_count": 52
+      },
+      {
+        "path": "/info/de/about",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/de/search-syntax",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/it/about",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/it/search-syntax",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/id/about",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/id/search-syntax",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/fr/about",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/fr/search-syntax",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/rss.xsl",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/engine_descriptions.json",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/autocompleter?q=searxng",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/image_proxy",
+        "status": 400,
+        "result_count": null
+      },
+      {
+        "path": "/metrics",
+        "status": 404,
+        "result_count": null
+      },
+      {
+        "path": "/clear_cookies",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/favicon.ico",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/search?q=searxng&format=json",
+        "status": 401,
+        "result_count": null
+      },
+      {
+        "path": "/info/fa-IR/about",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/info/fa-IR/search-syntax",
+        "status": 200,
+        "result_count": null
+      },
+      {
+        "path": "/static/themes/simple/img/192.png",
+        "status": 200,
+        "result_count": null
+      }
+    ]
+  },
+  "preview": {
+    "preview": "https://searxng-mobile-preview.syncpundit.chatgpt.site",
+    "verified_at": "2026-10-25T19:26:10.919713+00:00",
+    "checks": [
+      {
+        "path": "mobile.css",
+        "status": 200,
+        "source_hash_matches": true
+      },
+      {
+        "path": "mobile.js",
+        "status": 200,
+        "source_hash_matches": true
+      },
+      {
+        "path": "/",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/preferences",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/info/en/about",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/info/en/search-syntax",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/stats",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/search?q=South+Africa&categories=general",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/search?q=South+Africa&categories=images",
+        "status": 200,
+        "mobile_bootstrap": true
+      },
+      {
+        "path": "/search?q=South+Africa&format=json",
+        "status": 401,
+        "mobile_bootstrap": false
+      }
+    ]
+  },
+  "preview_browser": {
+    "engine": "Chromium",
+    "live_pages": 5,
+    "real_search": true,
+    "filter_apply": true,
+    "context_and_back": true,
+    "script_errors": []
+  },
+  "python_unit": {
+    "status": "passed",
+    "tests": 78,
+    "suites": [
+      "test_preferences",
+      "test_webapp",
+      "test_webutils"
+    ],
+    "note": "Existing mock result-preview errors are logged by the app; unittest reports OK."
+  },
+  "worker_router": "passed",
+  "migration_parity": {
+    "status": "passed",
+    "additional_themes": 16
+  },
+  "cloudflare_assets": "Both mobile files match source bytes after the existing build-assets step.",
+  "container": {
+    "status": "passed",
+    "image": "sha256:ae8a59e97492698728ae91d353bd623cf3dce6d17744e1c8de77410c1572cd99",
+    "checks": [
+      "home",
+      "preferences",
+      "about",
+      "search syntax",
+      "stats",
+      "mobile module"
+    ],
+    "build_note": "Local-only Dockerfile copy mounts the configured proxy CA for dependency installation. TLS verification stays enabled. Product Dockerfile unchanged."
+  },
+  "firefox_gecko": {
+    "status": "blocked_by_execution_environment",
+    "reason": "Headless Firefox did not start in this runtime (graphics/process namespace restrictions). No Gecko pass is claimed.",
+    "runner": "cloudflare/scripts/mobile-firefox.cjs"
+  },
+  "device_checks_pending": [
+    "Physical Firefox on Android/iOS",
+    "iPhone Safari",
+    "Android Chrome/Chromium",
+    "Native keyboard, Share, browser gestures and screen reader use"
+  ],
+  "asset_sha256": {
+    "mobile.js": "de6ff393b415eb2b9477c4122add6a9b17d2236424a654c4c6e06c4a8ee7f353",
+    "mobile.css": "9fcb0d43454a66241a7e88074b69c7ce2d9c9c48b3be7114df65d161b0977b32"
+  }
+}
