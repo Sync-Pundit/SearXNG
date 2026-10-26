@@ -74,10 +74,10 @@ with Chromium and produces ignored `output/searxng-mobile-results.json`.
 `MOBILE_TEST_FILTER` selects a named check. Browser installation/module locations
 can be overridden as documented in the runner.
 
-`mobile-firefox.cjs` supplies a separate Gecko check at phone widths. It could
-not run in this execution environment because Firefox failed to start under
-the available graphics/process-namespace restrictions; it is not reported as
-a passed browser test. Physical Firefox, Safari and Chrome checks remain.
+`mobile-firefox.cjs` supplies a separate Gecko check at phone widths. Initial
+host launch failures were resolved in the final QA pass using an isolated
+Docker environment. Gecko and WebKit now have passing engine-level checks;
+physical Firefox, Safari and Chrome checks remain.
 
 `cloudflare/scripts/audit-mobile-live.py` performs a read-only live inventory.
 Raw HTML/screenshots stay in ignored `output/`, because live diagnostics can
@@ -146,3 +146,27 @@ Codex added CDP touch-event checks for native form navigation, preserved filters
 Back, RTL, image viewers, code/maps, nested horizontal scrolling, gesture bounds,
 zoom/multitouch and desktop. The full suite now has eleven passing groups;
 physical phone/browser testing remains a hands-on check.
+
+## Final QA: 26 October 2026
+
+Codex rechecked candidate `41f26366a` against the unchanged current production
+base, reran all eleven Chromium groups (185 route/viewport combinations), all
+81 Python tests, Worker routing and migration parity, and rebuilt the actual
+Container. Its pages/assets match the source, normal multi-engine HTML/JSON
+searches return real results, and provider failures remain visible. The private
+preview still serves the matching mobile assets, real general/image searches,
+swipes, browser Back and the unauthenticated JSON rejection.
+
+Isolated browser environments additionally pass 81 layout cases each in Firefox
+144.0.2 and WebKit 26.0, with preferences, filters, image previews/Back, map widths,
+thumbnail alignment and synthetic category-gesture checks. Chromium uses CDP
+touch input; the other engines use synthetic touch-like event records. No
+physical device certification is claimed. No application change was needed for
+these checks. `MOBILE-VALIDATION.json` contains the precise evidence and limits.
+
+The unchanged `npm run check` command hit the session proxy's untrusted-CA
+error inside the dependency-installing Container build step. The final Container
+was separately built and exercised with the configured CA mounted into that
+step, with TLS verification enabled. The Worker dry-run is checked separately
+without rebuilding the Container. This environment limit is recorded separately
+from application/test failures; production build files are unchanged.

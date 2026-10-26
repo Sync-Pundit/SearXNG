@@ -437,12 +437,13 @@
       "mobile module"
     ],
     "build_note": "Local-only Dockerfile copy mounts the configured proxy CA for dependency installation. TLS verification stays enabled. Product Dockerfile unchanged.",
-    "scope": "Initial design revision; not rebuilt during the alignment follow-up."
+    "scope": "Initial design evidence; final rebuilt candidate is recorded under final_qa.container."
   },
   "firefox_gecko": {
-    "status": "blocked_by_execution_environment",
-    "reason": "Headless Firefox did not start in this runtime (graphics/process namespace restrictions). No Gecko pass is claimed.",
-    "runner": "cloudflare/scripts/mobile-firefox.cjs"
+    "status": "passed_in_final_qa",
+    "version": "144.0.2",
+    "combinations": 81,
+    "note": "Initial host launch failures were resolved by using an isolated Docker browser environment. Hardware checks remain pending."
   },
   "device_checks_pending": [
     "Physical Firefox on Android/iOS",
@@ -506,5 +507,320 @@
       "script_errors": []
     },
     "cold_load": "Category selection is set explicitly before native form submission; it does not depend on the core click handler."
+  },
+  "final_qa": {
+    "validated_at": "2026-10-26T03:40:57.669150+00:00",
+    "candidate_commit": "41f26366a3c59f57dab041d7f02dfcc199f526c7",
+    "production_base_commit": "f7e5b0f889aa56c29de5947af21eb334bf1a7cc0",
+    "product_changes_needed": false,
+    "chromium": {
+      "engine": "Chromium",
+      "groups": [
+        {
+          "name": "Every HTML page family, result template and answer state fits phone, tablet and landscape",
+          "status": "passed"
+        },
+        {
+          "name": "Reported alignment: map values, result thumbnails, footers, switches and focused search controls",
+          "status": "passed"
+        },
+        {
+          "name": "Category swipes navigate native forms without hijacking scrolling, viewers or browser edges",
+          "status": "passed"
+        },
+        {
+          "name": "All preference sections and engine categories remain available with mobile-sized controls",
+          "status": "passed"
+        },
+        {
+          "name": "Mobile filter apply preserves query, categories, language, SafeSearch and page navigation",
+          "status": "passed"
+        },
+        {
+          "name": "Context and action sheets preserve native forms, browser Back, focus and sharing",
+          "status": "passed"
+        },
+        {
+          "name": "Engine search, details, bulk actions and preference saving keep the original form contract",
+          "status": "passed"
+        },
+        {
+          "name": "Image preview keeps native swipe/Back behavior, visible exits and keyboard focus",
+          "status": "passed"
+        },
+        {
+          "name": "All palettes and RTL layouts retain page width and readable native forms",
+          "status": "passed"
+        },
+        {
+          "name": "Keyboard focus is stable before real occlusion and short viewports retain sheet controls",
+          "status": "passed"
+        },
+        {
+          "name": "Desktop resize restores native controls and no-JavaScript pages stay navigable",
+          "status": "passed"
+        }
+      ],
+      "limitations": [
+        "Real Flask rendering with deterministic result/provider fixtures.",
+        "Gecko/WebKit and physical touch, keyboard, native sharing and screen readers remain device checks."
+      ],
+      "browser_version": "154.0.8037.57",
+      "route_viewport_combinations": 185,
+      "templates": [
+        "default",
+        "images",
+        "videos",
+        "map",
+        "code",
+        "paper",
+        "file",
+        "keyvalue",
+        "products",
+        "packages",
+        "torrent"
+      ],
+      "alignment_viewports": 4,
+      "category_swipes": "Native button and checkbox forms, query/filters, Back, RTL, bounds and gesture exclusions passed",
+      "preference_sections": 6,
+      "engine_categories": 11,
+      "palettes": [
+        "auto",
+        "light",
+        "dark",
+        "black",
+        "paulgo",
+        "latte",
+        "frappe",
+        "macchiato",
+        "mocha",
+        "kagi",
+        "brave",
+        "moa",
+        "night",
+        "dracula",
+        "gruvbox",
+        "gruvboxmat",
+        "everforest",
+        "evergarden",
+        "nord",
+        "matcha"
+      ],
+      "rtl_locales": [
+        "ar",
+        "fa-IR"
+      ]
+    },
+    "firefox": {
+      "engine": "Firefox/Gecko",
+      "version": "144.0.2",
+      "combinations": 81,
+      "interactions": [
+        "All preference sections",
+        "Native filter apply",
+        "Image preview and Back",
+        "Map reading width and thumbnail/title alignment",
+        "Synthetic touch-like events: category next/previous (not native hardware input)"
+      ],
+      "limitations": [
+        "Desktop Gecko at mobile viewport widths, not Firefox for Android hardware."
+      ],
+      "touch_interfaces": {
+        "touchConstructor": "function",
+        "touchEventConstructor": "function",
+        "touchListIterator": "function",
+        "requestSubmit": "function"
+      }
+    },
+    "webkit": {
+      "engine": "WebKit",
+      "version": "26.0",
+      "combinations": 81,
+      "interactions": [
+        "All preference sections",
+        "Native filter apply",
+        "Image preview and Back",
+        "Map reading width and thumbnail/title alignment",
+        "Synthetic touch-like events: category next/previous (not native hardware input)"
+      ],
+      "limitations": [
+        "Linux WebKit at mobile widths, not iPhone Safari hardware."
+      ],
+      "touch_interfaces": {
+        "touchConstructor": "function",
+        "touchEventConstructor": "function",
+        "touchListIterator": "function",
+        "requestSubmit": "function"
+      }
+    },
+    "browser_transport": "Firefox and WebKit ran in isolated Debian 12 Docker containers. Browser requests for the local fixture origin were fulfilled by a Node HTTP relay to the real Flask fixture server; outside requests retained the environment proxy. No external authentication was forwarded.",
+    "touch_coverage": "Chromium CDP touch input; Firefox/WebKit synthetic touch-like event records. These are browser-engine checks, not hardware certification.",
+    "python_unit_tests": {
+      "status": "passed",
+      "count": 81,
+      "log_note": "Existing mock result-preview errors are logged by the app; unittest reports OK."
+    },
+    "worker_router": "passed",
+    "migration_parity": "passed",
+    "container": {
+      "status": "passed",
+      "image": "sha256:6acbda5106c43bb05456865f29d1ba75ba774c2e1d1922da9bd77e8f4e2d28c2",
+      "routes": [
+        {
+          "path": "/",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/preferences",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/info/en/about",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/info/en/search-syntax",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/stats",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/missing-mobile-page",
+          "status": 404,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/search?q=SearXNG&engines=wikipedia",
+          "status": 200,
+          "content_type": "text/html; charset=utf-8",
+          "native_results": 0
+        },
+        {
+          "path": "/search?q=SearXNG&engines=wikipedia&format=json",
+          "status": 200,
+          "content_type": "application/json",
+          "json_result_count": 0
+        },
+        {
+          "asset": "mobile.js",
+          "source_matches": true
+        },
+        {
+          "asset": "mobile.css",
+          "source_matches": true
+        },
+        {
+          "path": "/search?q=SearXNG&categories=general",
+          "status": 200,
+          "native_results": 26,
+          "real_provider_search": true
+        }
+      ],
+      "native_general_json_results": 26,
+      "provider_note": "Normal multi-engine searches returned real results with native provenance. Individual Google/Brave requests showed access-denied/rate-limit behavior in local QA; Wikipedia alone returned no results. Empty responses were not counted as successful search acceptance.",
+      "build_note": "Repository Container with configured proxy CA mounted for the dependency-install step in an ignored Dockerfile copy; TLS verification enabled. Product Dockerfile unchanged."
+    },
+    "hosted_preview": {
+      "preview": "https://searxng-mobile-preview.syncpundit.chatgpt.site",
+      "verified_at": "2026-10-26T03:23:19.997349+00:00",
+      "checks": [
+        {
+          "path": "mobile.css",
+          "status": 200,
+          "source_hash_matches": true
+        },
+        {
+          "path": "mobile.js",
+          "status": 200,
+          "source_hash_matches": true
+        },
+        {
+          "path": "/",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/preferences",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/info/en/about",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/info/en/search-syntax",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/stats",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/search?q=South+Africa&categories=general",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/search?q=South+Africa&categories=images",
+          "status": 200,
+          "mobile_bootstrap": true
+        },
+        {
+          "path": "/search?q=South+Africa&format=json",
+          "status": 401,
+          "mobile_bootstrap": false
+        }
+      ]
+    },
+    "hosted_swipes": {
+      "engine": "Chromium",
+      "real_general_to_images": true,
+      "real_images_to_general": true,
+      "query_and_filters_retained": true,
+      "browser_back": true,
+      "script_errors": []
+    },
+    "known_limits": [
+      "No physical Android/iPhone, OS keyboard, gesture-edge or screen-reader certification.",
+      "Desktop Gecko and Linux WebKit at mobile viewport sizes do not replace Firefox for Android or iPhone Safari hardware checks."
+    ],
+    "tested_product_sha256": {
+      "searx/templates/simple/base.html": "dd55314bee65340c861359ba231c72e45823ac0da4e11cb1895331ad65b39862",
+      "searx/static/themes/simple/mobile/mobile.js": "04c05e4ef2de5a5087094b527cc23ab11c295f1ff9caca49c6e10e95ecf1c35f",
+      "searx/static/themes/simple/mobile/mobile.css": "b6c58598a81350b66724010fe3766fc7c4065847a692d2335cdbc2ac51f86818",
+      "searx/engines/mastodon.py": "0a36e53217d30c1fdf3c762f139831cf6ff3771ef8b9556e85f48a950b318066"
+    },
+    "standard_build_command": {
+      "status": "environment_limited",
+      "command": "npm run check",
+      "failure": "Container dependency fetch from PyPI failed with invalid peer certificate: UnknownIssuer under the session HTTPS proxy.",
+      "equivalent_container_check": "Passed with the configured proxy CA mounted into an ignored Dockerfile copy; TLS verification enabled and production Dockerfile unchanged.",
+      "worker_bundle_check": {
+        "status": "passed",
+        "command": "npm run check -- --containers-rollout=none",
+        "mode": "Wrangler dry-run; no deployment. Container separately built and exercised with configured CA."
+      }
+    },
+    "completed_at": "2026-10-26T03:43:24.615835+00:00",
+    "result": "No blocking application regressions found. No application changes required. Physical hardware certification remains outside these automated checks.",
+    "total_route_viewport_combinations": 347,
+    "production_deployed": false
   }
 }
